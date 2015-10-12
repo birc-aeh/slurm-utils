@@ -1,0 +1,233 @@
+#!/usr/bin/env python
+#
+# gnodes - shows a graphical overview of a slurm cluster
+#
+# Copyright 2015 Anders Halager <aeh@birc.au.dk>
+#
+# LICENSE: MIT
+
+import os, sys
+import re
+import subprocess
+from math import ceil, floor
+from collections import namedtuple
+from itertools import groupby, chain
+
+try:
+    from hostlist import expand_hostlist
+except:
+    # If the hostlist module isn't available we use a small homebrewed version.
+    # Limited to simple patterns like prefix[01-08,10] and not more complex
+    # patterns like a[10-20]b[10-20].
+    def expand_hostlist(hostlist):
+        return chain.from_iterable(_expand_hostlist(hostlist))
+    def _expand_hostlist(hostlist):
+        in_bracket = p_beg = p_end = 0
+        for i, c in enumerate(hostlist):
+            if not in_bracket and c == ",":
+                yield _expand_part(hostlist[p_beg:p_end])
+                p_beg, p_end = i+1, i
+            p_end += 1
+            in_bracket += int(c == "[") + -1*int(c == "]")
+        yield _expand_part(hostlist[p_beg:p_end])
+    def _expand_part(p):
+        if "[" in p:
+            r_beg, r_end, prefix = p.index("["), p.index("]"), p[:p.index("[")]
+            for sub_r in p[r_beg+1:r_end].split(","):
+                if "-" not in sub_r:
+                    yield prefix + sub_r
+                else:
+                    lo,hi = sub_r.split("-", 1)
+                    for i in xrange(int(lo), int(hi)+1):
+                        yield prefix + str(i).zfill(len(lo))
+        else:
+            yield p
+
+NodeMeta = namedtuple('NodeMeta', 'load in_use unavailable cores mem state')
+JobMeta  = namedtuple('JobMeta',  'job_ids user_ids job_mem_usages')
+Group    = namedtuple('Group',    'partition cores mem')
+
+# Symbols:
+BASE        = '.'
+ALLOCATED   = '_'
+USE         = 'O'
+OVERUSE     = '!'
+UNKNOWN_USE = '?'
+
+NODE_CMD = ['sinfo', "--format=%n;%C;%m;%O;%t;%P", '--noheader']
+JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P", '--states=R', '--noheader']
+
+# Using dimming:
+# I think it's nicer, but not all terminals support it
+# NODENAME_MATCHED   = "\033[0m%s\033[2m"
+# NODENAME_UNMATCHED = "%s"
+# SEARCHING_BEGIN    = ""
+# SEARCHING_END      = "\033[2m"
+# NORMAL_BEGIN       = ""
+# NORMAL_END         = ""
+
+# Highlighting by reversing background and foreground colors.
+# Should be supported everywhere (famous last words)
+NODENAME_MATCHED   = "\033[7m%s\033[0m"
+NODENAME_UNMATCHED = "%s"
+SEARCHING_BEGIN    = ""
+SEARCHING_END      = ""
+NORMAL_BEGIN       = ""
+NORMAL_END         = ""
+
+def format_default_partition(s):
+    return "\033[1m%s\033[0m" % s
+def format_normal_partition(s):
+    return s
+
+pattern = re.compile('$^')
+searching = False
+
+if len(sys.argv) >= 2:
+    pattern = re.compile('|'.join(sys.argv[1:]))
+    searching = True
+
+def is_float(x):
+    try:
+        y = float(x)
+        return True
+    except ValueError:
+        return False
+
+def make_bar(meta, all_mem_used):
+    usage = UNKNOWN_USE
+    in_use = 0
+    cores_loaded = 0
+    if meta.cores == 0 or meta.state.startswith("unk"):
+        return 'UNKN'
+    elif meta.unavailable > 0:
+        return 'DOWN'
+    elif meta.unavailable:
+        return UNKNOWN_USE*meta.cores
+    elif meta.in_use > 0:
+        in_use = all_mem_used and meta.cores or meta.in_use
+        load = meta.load
+        Ls = meta.load
+        if is_float(Ls):
+            Lf = float(Ls)
+            cores_loaded = min(in_use, int(floor(Lf + 0.5)))
+            if Lf > in_use*1.5:
+                usage = OVERUSE
+            else:
+                usage = USE
+    A, B, C = (meta.cores - in_use, in_use - cores_loaded, cores_loaded)
+    return BASE*max(0, A) + ALLOCATED*max(0, B) + usage*max(0, C)
+
+def group_id(x):
+    # partition, number of cores, amount of memory
+    return Group(x[0][1], x[1].cores, x[1].mem)
+
+def parse_squeue_mem(s):
+    m = {'K':10,'M':20,'G':30,'T':40,'P':50,'E':60}
+    scale = 2 ** m.get(s[-1], 0)
+    if scale != 1:
+        s = s[:-1]
+    # squeue reports memory in megabytes, so we need an additional scaling
+    return scale * float(s) * (2**20)
+
+def stripped_lines_from_cmd(cmd):
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    for line in p.stdout:
+        yield line.strip()
+    p.wait()
+
+def get_output_width(fallback_width):
+    width = fallback_width
+    try:
+        for line in stripped_lines_from_cmd(['tput', 'cols']):
+            width = int(line)
+    except:
+        pass
+    return width
+
+def make_header(partition, ncores, nmem, field_width, nfields, default_partition):
+    header_line = " " + '+'.join('-'*(field_width+2) for p in range(nfields))
+    text = " - %d cores & %dGB" % (ncores, nmem / 2**30)
+    if partition == default_partition:
+        part = format_default_partition(partition)
+    else:
+        part = format_normal_partition(partition)
+    header   = '+- ' + part + text + ' '
+    header_line = header + header_line[len(text)+len(partition)+4:]
+    return '\n' + header_line + '+'
+
+def make_footer(field_width, nfields):
+    footer_line = '+'.join('-'*(field_width+2) for p in range(nfields))
+    return '+' + footer_line + '+'
+
+def main():
+    use_colors = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
+    node_meta = {}
+    node_job_meta = {}
+    default_partition = ""
+
+    for line in stripped_lines_from_cmd(NODE_CMD):
+        node,cpuinfo,mem,load,state,partition = line.split(';')
+        in_use,idle,unavailable,cores = map(int, cpuinfo.split('/'))
+        if partition.endswith('*'):
+            partition = partition[:-1]
+            default_partition = partition
+        node_meta[(node,partition)] = NodeMeta(load, in_use, unavailable, cores, int(mem)*1024*1024, state)
+        node_job_meta[node] = JobMeta(set(), set(), list())
+
+    result = []
+    for line in stripped_lines_from_cmd(JOB_CMD):
+        jobid,state,user,mem,nodes,partition = line.split(';')
+        mem = parse_squeue_mem(mem)
+        if state != 'R':
+            continue
+        ex_nodes = list(expand_hostlist(nodes))
+        for n in ex_nodes:
+            node_job_meta[n].job_ids.add(jobid)
+            node_job_meta[n].user_ids.add(user)
+            node_job_meta[n].job_mem_usages.append(mem)
+
+    screen_width = get_output_width(80)
+    screen_width = int(screen_width) - 1
+
+    if searching:
+        print SEARCHING_BEGIN
+    else:
+        print NORMAL_BEGIN
+
+    for k,g in groupby(sorted(node_meta.iteritems(), key=group_id), key=group_id):
+        info_fields = []
+        name_patterns = []
+        for (node,partition),meta in sorted(g):
+            job_meta = node_job_meta[node]
+            search_target = job_meta.job_ids | job_meta.user_ids | set([node])
+            highlight = any(pattern.search(x) != None for x in search_target)
+            mem_available = max(0, meta.mem - sum(job_meta.job_mem_usages))
+            bar = make_bar(meta, mem_available == 0)
+            if meta.in_use == meta.cores:
+                mem_available = 0
+            info = "%s %4.0fG  %s" % (node, mem_available / (2**30), bar.center(meta.cores))
+            info_fields.append(info)
+            name_patterns.append(highlight and NODENAME_MATCHED or NODENAME_UNMATCHED)
+        max_field_width = max(len(i) for i in info_fields)
+        fields_per_row = min(len(info_fields), int(screen_width / (max_field_width + 3)))
+        fields_in_last_row = len(info_fields) % fields_per_row
+        if fields_in_last_row != 0:
+            dummy_fields = fields_per_row - fields_in_last_row
+            info_fields.extend([" "*max_field_width]*dummy_fields)
+            name_patterns.extend([NODENAME_UNMATCHED]*dummy_fields)
+        rows = len(info_fields) / fields_per_row
+        print make_header(
+                k.partition, k.cores, k.mem,
+                max_field_width, fields_per_row, default_partition)
+        for r in xrange(0, rows):
+            print "| %s |" % " | ".join(pat % s for pat,s in zip(name_patterns, info_fields)[r::rows])
+        print make_footer(max_field_width, fields_per_row)
+
+    if searching:
+        print SEARCHING_END
+    else:
+        print NORMAL_END
+
+if __name__ == "__main__":
+    main()
