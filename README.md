@@ -3,7 +3,7 @@ A few utilities for use on (hopefully) any SLURM cluster.
 
 The only requirements are python 2.6+ and that the standard slurm commands
 (`squeue`,`sinfo`,...) are available through PATH.
-If the `hostlist` module is available to python gnodes will use it to expand
+If the `hostlist` module is available to python `gnodes` will use it to expand
 list of nodes, otherwise it will use an included function with some
 limitations.
 
@@ -19,7 +19,7 @@ ids or node names. Nodes that are running either the mentioned job or any job
 from the user will be highlighted.
 
 Unallocated cores are marked with `.`, allocated cores with no load
-are marekd with `_`, loaded cores are marked with `O` and if the load
+are marked with `_`, loaded cores are marked with `O` and if the load
 goes above 1.5 the allocated number of cores it is marked with `!`.
 
 # jobinfo
