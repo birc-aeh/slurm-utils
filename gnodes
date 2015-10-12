@@ -160,6 +160,9 @@ def make_footer(field_width, nfields):
     footer_line = '+'.join('-'*(field_width+2) for p in range(nfields))
     return '+' + footer_line + '+'
 
+def clamp(n, lo, hi):
+    return max(lo, min(hi, n))
+
 def main():
     use_colors = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
     node_meta = {}
@@ -210,7 +213,7 @@ def main():
             info_fields.append(info)
             name_patterns.append(highlight and NODENAME_MATCHED or NODENAME_UNMATCHED)
         max_field_width = max(len(i) for i in info_fields)
-        fields_per_row = min(len(info_fields), int(screen_width / (max_field_width + 3)))
+        fields_per_row = clamp(int(screen_width / (max_field_width + 3)), 1, len(info_fields))
         fields_in_last_row = len(info_fields) % fields_per_row
         if fields_in_last_row != 0:
             dummy_fields = fields_per_row - fields_in_last_row
