@@ -225,12 +225,27 @@ def main(jobid):
         if show:
             print "%-20s: %s" % (desc, format(val, meta))
 
+def usage(pipe):
+    print >>pipe, \
+"""jobinfo - collates job information from the 'sstat', 'sacct' and
+'squeue' SLURM commands to give a uniform interface for both current
+and historical jobs.
+
+Usage:
+    jobinfo <job id>
+
+Report bugs to Anders Halager <aeh@birc.au.dk>"""
+
 if __name__ == "__main__":
+    if "-h" in sys.argv or "--help" in sys.argv:
+        usage(sys.stdout)
+        sys.exit(0)
     if len(sys.argv) != 2:
-        print "Usage: jobinfo <job id>"
+        usage(sys.error)
         sys.exit(1)
     jobid = sys.argv[1]
     if len(set(jobid) - set("0123456789_.")) > 0:
         print >>sys.stderr, "The argument does not look like a valid job id"
+        usage(sys.stderr)
         sys.exit(1)
     main(jobid)
