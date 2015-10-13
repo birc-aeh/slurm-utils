@@ -229,4 +229,8 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         print "Usage: jobinfo <job id>"
         sys.exit(1)
-    main(sys.argv[1])
+    jobid = sys.argv[1]
+    if len(set(jobid) - set("0123456789_.")) > 0:
+        print >>sys.stderr, "The argument does not look like a valid job id"
+        sys.exit(1)
+    main(jobid)
