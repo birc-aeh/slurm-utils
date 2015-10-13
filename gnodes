@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 #
-# gnodes - shows a graphical overview of a slurm cluster
+# gnodes - shows a graphical overview of a Slurm cluster
+#
+# Inspired by a similar program done by Niels Carl Hansen for a Torque
+# cluster.  The original used a static template which gives you more
+# organized output but I wanted less manual work, adaptive width, python
+# rather than perl and of course Slurm support.
 #
 # Copyright 2015 Anders Halager <aeh@birc.au.dk>
 #
@@ -232,5 +237,32 @@ def main():
     else:
         print NORMAL_END
 
+def usage():
+    print """gnodes provdies a graphical overview of a Slurm cluster
+
+Usage:
+    gnodes <search terms>
+
+Output:
+    All partitions and the nodes in them. Each node shows available
+    memory and a symbol for each core in the machine.
+    The meaning of each type of symbol is described in the following
+    table:
+
+    Symbol | Meaning
+    {base:>6} | Available core
+    {alloc:>6} | Allocated core
+    {use:>6} | Loaded core
+    {overuse:>6} | Load is significantly higher than allocated core count
+    {unkn:>6} | Load is unknown
+
+    Search terms are regular expressions that match on node name and
+    users/ids of running jobs. If anything matches the node will be
+    visually highlighted.
+""".format(base=BASE,alloc=ALLOCATED,use=USE,overuse=OVERUSE,unkn=UNKNOWN_USE)
+
 if __name__ == "__main__":
+    if "-h" in sys.argv or "--help" in sys.argv:
+        usage()
+        sys.exit(0)
     main()
