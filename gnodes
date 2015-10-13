@@ -89,7 +89,7 @@ pattern = re.compile('$^')
 searching = False
 
 if len(sys.argv) >= 2:
-    pattern = re.compile('|'.join(sys.argv[1:]))
+    pattern = re.compile('|'.join("(^%s$)" % p for p in sys.argv[1:]))
     searching = True
 
 def is_float(x):
