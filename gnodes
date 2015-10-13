@@ -85,6 +85,7 @@ def format_default_partition(s):
 def format_normal_partition(s):
     return s
 
+GNODES_IGNORE = re.compile(os.environ.get("GNODES_IGNORE", '$^'))
 pattern = re.compile('$^')
 searching = False
 
@@ -204,6 +205,8 @@ def main():
         print NORMAL_BEGIN
 
     for k,g in groupby(sorted(node_meta.iteritems(), key=group_id), key=group_id):
+        if GNODES_IGNORE.search(k.partition):
+            continue
         info_fields = []
         name_patterns = []
         for (node,partition),meta in sorted(g):
@@ -259,6 +262,9 @@ Output:
     Search terms are regular expressions that match on node name and
     users/ids of running jobs. If anything matches the node will be
     visually highlighted.
+
+Input environment variables:
+    GNODES_IGNORE   Regex for partitions to hide
 """.format(base=BASE,alloc=ALLOCATED,use=USE,overuse=OVERUSE,unkn=UNKNOWN_USE)
 
 if __name__ == "__main__":
