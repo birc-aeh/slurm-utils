@@ -59,7 +59,7 @@ USE         = 'O'
 OVERUSE     = '!'
 UNKNOWN_USE = '?'
 
-NODE_CMD = ['sinfo', "--format=%n;%C;%m;%O;%t;%P", '--noheader']
+NODE_CMD = ['sinfo', "--format=%n;%C;%m;%O;%T;%P", '--noheader']
 JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P", '--states=R', '--noheader']
 
 # Using dimming:
@@ -100,16 +100,42 @@ def is_float(x):
     except ValueError:
         return False
 
+UNKNOWN = 1 # Node is in an unknown state
+NO_NEW  = 2 # Node is not accepting new jobs (but might still have some)
+DOWN    = 4 # Node is down (stronger version of NO_NEW)
+
+def parse_suffix(s):
+    suffix_map = {"*": NO_NEW, "$": NO_NEW, "#": 0, "~": 0}
+    suf = s[-1]
+    if suf in suffix_map:
+        return s[:-1], suffix_map[suf]
+    return s, 0
+
+def parse_state(raw):
+    s,suf_state = parse_suffix(raw)
+    return suf_state | state_map.get(s, UNKNOWN)
+
+state_names = """
+allocated allocated+ completing idle mixed
+down drained error fail power_down power_up reserved
+draining failing future maint perfctrs
+""".split()
+state_map = dict(
+        [("unknown",UNKNOWN)] +
+        zip(state_names, [0]*5 + [DOWN]*6 + [NO_NEW]*5))
+
 def make_bar(meta, all_mem_used):
     usage = UNKNOWN_USE
+    base = BASE
     in_use = 0
     cores_loaded = 0
-    if meta.cores == 0 or meta.state.startswith("unk"):
+    state_flags = parse_state(meta.state.lower())
+    if state_flags & NO_NEW:
+        base = " " # if not accepting jobs, the cores aren't marked available
+    if meta.cores == 0 or state_flags & UNKNOWN:
         return 'UNKN'
-    elif meta.unavailable > 0:
+    elif state_flags & DOWN:
         return 'DOWN'
-    elif meta.unavailable:
-        return UNKNOWN_USE*meta.cores
     elif meta.in_use > 0:
         in_use = all_mem_used and meta.cores or meta.in_use
         load = meta.load
@@ -122,7 +148,7 @@ def make_bar(meta, all_mem_used):
             else:
                 usage = USE
     A, B, C = (meta.cores - in_use, in_use - cores_loaded, cores_loaded)
-    return BASE*max(0, A) + ALLOCATED*max(0, B) + usage*max(0, C)
+    return base*max(0, A) + ALLOCATED*max(0, B) + usage*max(0, C)
 
 def group_id(x):
     # partition, number of cores, amount of memory
