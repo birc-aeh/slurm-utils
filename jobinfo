@@ -241,7 +241,7 @@ if __name__ == "__main__":
         usage(sys.stdout)
         sys.exit(0)
     if len(sys.argv) != 2:
-        usage(sys.error)
+        usage(sys.stderr)
         sys.exit(1)
     jobid = sys.argv[1]
     if len(set(jobid) - set("0123456789_.")) > 0:
