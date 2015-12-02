@@ -290,9 +290,7 @@ Output:
     visually highlighted.
 
 Input environment variables:
-    GNODES_IGNORE   Regex for partitions to hide -- automatically set to ignore
-                      appropriate partitions on the GenomeDK cluster, you
-                      probably won't want to set it manually.
+    GNODES_IGNORE   Regex for partitions to hide
 """.format(base=BASE,alloc=ALLOCATED,use=USE,overuse=OVERUSE,unkn=UNKNOWN_USE)
 
 if __name__ == "__main__":
