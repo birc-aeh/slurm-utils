@@ -134,7 +134,7 @@ def make_bar(meta, all_mem_used):
         base = " " # if not accepting jobs, the cores aren't marked available
     if meta.cores == 0 or state_flags & UNKNOWN:
         return 'UNKN'
-    elif state_flags & DOWN:
+    elif (state_flags & DOWN) or (meta.in_use == 0 and state_flags & NO_NEW):
         return 'DOWN'
     elif meta.in_use > 0:
         in_use = all_mem_used and meta.cores or meta.in_use
