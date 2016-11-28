@@ -59,8 +59,8 @@ USE         = 'O'
 OVERUSE     = '!'
 UNKNOWN_USE = '?'
 
-NODE_CMD = ['sinfo', "--format=%n;%C;%m;%O;%T;%P;%l", '--noheader']
-JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P", '--states=R', '--noheader']
+NODE_CMD = ['sinfo', "--format=%n;%C;%m;%O;%T;%P;%l", '--noheader', '-a']
+JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P", '--states=R', '--noheader', '-a']
 
 # Using dimming:
 # I think it's nicer, but not all terminals support it
