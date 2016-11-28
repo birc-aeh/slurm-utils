@@ -59,7 +59,7 @@ USE         = 'O'
 OVERUSE     = '!'
 UNKNOWN_USE = '?'
 
-NODE_CMD = ['sinfo', "--format=%n;%C;%m;%O;%T;%P", '--noheader']
+NODE_CMD = ['sinfo', "--format=%n;%C;%m;%O;%T;%P;%l", '--noheader']
 JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P", '--states=R', '--noheader']
 
 # Using dimming:
@@ -176,9 +176,12 @@ def get_output_width(fallback_width):
         pass
     return width
 
-def make_header(partition, ncores, nmem, field_width, nfields, default_partition):
+def make_header(partition, max_walltime, ncores, nmem, field_width, nfields, default_partition):
     header_line = " " + '+'.join('-'*(field_width+2) for p in range(nfields))
-    text = " - %d cores & %dGB" % (ncores, nmem / 2**30)
+    if max_walltime == "infinite":
+        text = " - %d cores & %dGB" % (ncores, nmem / 2**30)
+    else:
+        text = " - %d cores & %dGB & max time %s" % (ncores, nmem / 2**30, max_walltime)
     if partition == default_partition:
         part = format_default_partition(partition)
     else:
@@ -199,13 +202,15 @@ def main():
     node_meta = {}
     node_job_meta = {}
     default_partition = ""
+    partition_walltimes = dict()
 
     for line in stripped_lines_from_cmd(NODE_CMD):
-        node,cpuinfo,mem,load,state,partition = line.split(';')
+        node,cpuinfo,mem,load,state,partition,max_walltime = line.split(';')
         in_use,idle,unavailable,cores = map(int, cpuinfo.split('/'))
         if partition.endswith('*'):
             partition = partition[:-1]
             default_partition = partition
+        partition_walltimes[partition] = max_walltime
         node_meta[(node,partition)] = NodeMeta(load, in_use, unavailable, cores, int(mem)*1024*1024, state)
         node_job_meta[node] = JobMeta(set(), set(), list())
 
@@ -254,7 +259,7 @@ def main():
             name_patterns.extend([NODENAME_UNMATCHED]*dummy_fields)
         rows = len(info_fields) / fields_per_row
         print make_header(
-                k.partition, k.cores, k.mem,
+                k.partition, partition_walltimes[k.partition], k.cores, k.mem,
                 max_field_width, fields_per_row, default_partition)
         for r in xrange(0, rows):
             print "| %s |" % " | ".join(pat % s for pat,s in zip(name_patterns, info_fields)[r::rows])
