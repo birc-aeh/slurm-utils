@@ -159,8 +159,7 @@ def parse_squeue_mem(s):
     scale = 2 ** m.get(s[-1], 0)
     if scale != 1:
         s = s[:-1]
-    # squeue reports memory in megabytes, so we need an additional scaling
-    return scale * float(s) * (2**20)
+    return scale * float(s)
 
 def stripped_lines_from_cmd(cmd):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
