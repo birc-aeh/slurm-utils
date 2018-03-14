@@ -85,6 +85,7 @@ def format_default_partition(s):
 def format_normal_partition(s):
     return s
 
+GNODES_SHORT_HEADER = os.environ.get("GNODES_SHORT_HEADER", None)
 GNODES_IGNORE = re.compile(os.environ.get("GNODES_IGNORE", '$^'))
 pattern = re.compile('$^')
 searching = False
@@ -178,11 +179,18 @@ def get_output_width(fallback_width):
 
 def make_header(partition, max_walltime, ncores, nmem, ngpus, field_width, nfields, default_partition):
     header_line = " " + '+'.join('-'*(field_width+2) for p in range(nfields))
-    text = " - %d cores & %dGB" % (ncores, nmem / 2**30)
+    text_long = " - %d cores & %dGB" % (ncores, nmem / 2**30)
+    text_short = " - %dC / %dGB" % (ncores, nmem / 2**30)
     if ngpus != 0:
-        text = text + " & %d GPUs" % ngpus
+        text_long = text_long + " & %d GPUs" % ngpus
+        text_short = text_short + " / %dGPU" % ngpus
     if max_walltime != "infinite":
-        text = text + " & max time %s" % (max_walltime)
+        text_long = text_long + " & max time %s" % (max_walltime)
+        text_short = text_short + " / %s" % (max_walltime)
+    if GNODES_SHORT_HEADER:
+        text = text_short
+    else:
+        text = text_long
     if partition == default_partition:
         part = format_default_partition(partition)
     else:
