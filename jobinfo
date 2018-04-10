@@ -41,7 +41,7 @@ def time_min(a, b):
 def gpu_str(s=None):
     if s is None or "gres/gpu=" not in s.lower():
         return 0
-    m = re.match(r"gres/gpu=(?P<num_gpus>\d+)", s.lower())
+    m = re.match(r".*gres/gpu=(?P<num_gpus>\d+)", s.lower())
     return int(m.group('num_gpus'))
 
 def byte_size(s=None):
