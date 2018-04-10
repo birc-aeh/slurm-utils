@@ -38,6 +38,12 @@ def time_min(a, b):
         return a
     return max(a, b)
 
+def gpu_str(s=None):
+    if s is None or "gres/gpu=" not in s:
+        return 0
+    m = re.match(r"gres/gpu=(?P<num_gpus>\d+)", s.lower())
+    return int(m.group('num_gpus'))
+
 def byte_size(s=None):
     if s is None or s == "16?":
         return 0.0
@@ -141,6 +147,7 @@ FIELDS = [
         Field("Partition",           str,        keep_first,   True,  False, f_str,     "Partition"),
         Field("NodeList",            str,        keep_first,   True,  False, f_str,     "Nodes"),
         Field("ncpus",               int,        max,          True,  False, f_str,     "Cores"),
+        Field("AllocTRES",           gpu_str,    max,          True,  False, f_str,     "GPUs"),
         Field("State",               str,        append,       True,  False, f_state,   "State"),
         Field("Submit",              str,        keep_first,   True,  False, f_str,     "Submit"),
         Field("start",               date_str,   min,          True,  False, f_date,    "Start"),
