@@ -284,8 +284,8 @@ def main(parser):
 
     for k,g in groupby(sorted(node_meta.iteritems(), key=group_id), key=group_id):
 
-        if parser.partition:
-            if not k.partition in [ parser.partition ]:
+        if len(parser.partition) > 0:
+            if k.partition not in parser.partition:
                 continue
 
         if GNODES_IGNORE.search(k.partition):
@@ -328,7 +328,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser(usage=__doc__)
     parser.add_argument("search", metavar="SEARCH", help="Regular expression search terms for node/user(s)", nargs='*')
-    parser.add_argument("-p", "--partition", dest="partition", help="Only show nodes for partition", default=None)
+    parser.add_argument("-p", "--partition", dest="partition", help="Only show nodes for partition", action="append", default=list())
     args = parser.parse_args()
 
     if args.search:
