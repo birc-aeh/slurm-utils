@@ -49,7 +49,7 @@ except:
             yield p
 
 NodeMeta = namedtuple('NodeMeta', 'load in_use unavailable cores mem gpus state')
-JobMeta  = namedtuple('JobMeta',  'job_ids user_ids job_mem_usages')
+JobMeta  = namedtuple('JobMeta',  'job_ids user_ids job_mem_usages job_accounts')
 Group    = namedtuple('Group',    'partition cores mem gpus')
 
 # Symbols:
@@ -60,7 +60,7 @@ OVERUSE     = '!'
 UNKNOWN_USE = '?'
 
 NODE_CMD = ['sinfo', "--format=%n;%C;%m;%O;%T;%P;%l;%G", '--noheader', '-a']
-JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P", '--states=R', '--noheader', '-a']
+JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P;%a", '--states=R', '--noheader', '-a']
 
 # Using dimming:
 # I think it's nicer, but not all terminals support it
@@ -227,11 +227,11 @@ def main():
             default_partition = partition
         partition_walltimes[partition] = max_walltime
         node_meta[(node,partition)] = NodeMeta(load, in_use, unavailable, cores, int(mem)*1024*1024, gpus, state)
-        node_job_meta[node] = JobMeta(set(), set(), list())
+        node_job_meta[node] = JobMeta(set(), set(), list(), set())
 
     result = []
     for line in stripped_lines_from_cmd(JOB_CMD):
-        jobid,state,user,mem,nodes,partition = line.split(';')
+        jobid,state,user,mem,nodes,partition,account = line.split(';')
         mem = parse_squeue_mem(mem)
         if state != 'R':
             continue
@@ -240,6 +240,7 @@ def main():
             node_job_meta[n].job_ids.add(jobid)
             node_job_meta[n].user_ids.add(user)
             node_job_meta[n].job_mem_usages.append(mem)
+            node_job_meta[n].job_accounts.add(account)
 
     screen_width = get_output_width(80)
     screen_width = int(screen_width) - 1
@@ -256,7 +257,7 @@ def main():
         name_patterns = []
         for (node,partition),meta in sorted(g):
             job_meta = node_job_meta[node]
-            search_target = job_meta.job_ids | job_meta.user_ids | set([node])
+            search_target = job_meta.job_ids | job_meta.user_ids | job_meta.job_accounts | set([node])
             highlight = any(pattern.search(x) != None for x in search_target)
             mem_available = max(0, meta.mem - sum(job_meta.job_mem_usages))
             bar = make_bar(meta, mem_available == 0)
