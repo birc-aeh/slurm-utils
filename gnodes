@@ -42,8 +42,8 @@ import os, sys
 import re
 import subprocess
 import grp
-from argparse import ArgumentParser, SUPPRESS
-from math import ceil, floor
+from argparse import ArgumentParser
+from math import floor
 from collections import namedtuple
 from itertools import groupby, chain
 
