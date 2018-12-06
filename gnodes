@@ -41,7 +41,7 @@ Input environment variables:
 import os, sys
 import re
 import subprocess
-import socket
+import grp
 from argparse import ArgumentParser, SUPPRESS
 from math import ceil, floor
 from collections import namedtuple
@@ -78,7 +78,7 @@ except:
             yield p
 
 NodeMeta = namedtuple('NodeMeta', 'load in_use unavailable cores mem gpus state')
-JobMeta  = namedtuple('JobMeta',  'job_ids user_ids job_mem_usages')
+JobMeta  = namedtuple('JobMeta',  'job_ids job_usernames job_mem_usages job_accounts job_groups')
 Group    = namedtuple('Group',    'partition cores mem gpus')
 
 # Symbols:
@@ -89,7 +89,7 @@ OVERUSE     = '!'
 UNKNOWN_USE = '?'
 
 NODE_CMD = ['sinfo', "--format=%n;%C;%m;%O;%T;%P;%l;%G", '--noheader', '-a']
-JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P", '--states=R', '--noheader', '-a']
+JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P;%a", '--states=R', '--noheader', '-a']
 
 # Using dimming:
 # I think it's nicer, but not all terminals support it
@@ -238,6 +238,11 @@ def main(parser):
     default_partition = ""
     partition_walltimes = dict()
 
+    user_groups = dict()
+    for group in grp.getgrall():
+        for member in group.gr_mem:
+            user_groups.setdefault(member, set()).add(group.gr_name)
+
     for line in stripped_lines_from_cmd(NODE_CMD):
         node,cpuinfo,mem,load,state,partition,max_walltime,gres = line.split(';')
 
@@ -252,19 +257,21 @@ def main(parser):
             default_partition = partition
         partition_walltimes[partition] = max_walltime
         node_meta[(node,partition)] = NodeMeta(load, in_use, unavailable, cores, int(mem)*1024*1024, gpus, state)
-        node_job_meta[node] = JobMeta(set(), set(), list())
+        node_job_meta[node] = JobMeta(set(), set(), list(), set(), set())
 
     result = []
     for line in stripped_lines_from_cmd(JOB_CMD):
-        jobid,state,user,mem,nodes,partition = line.split(';')
+        jobid,state,user,mem,nodes,partition,account = line.split(';')
         mem = parse_squeue_mem(mem)
         if state != 'R':
             continue
         ex_nodes = list(expand_hostlist(nodes))
         for n in ex_nodes:
             node_job_meta[n].job_ids.add(jobid)
-            node_job_meta[n].user_ids.add(user)
+            node_job_meta[n].job_usernames.add(user)
             node_job_meta[n].job_mem_usages.append(mem)
+            node_job_meta[n].job_accounts.add(account)
+            node_job_meta[n].job_groups.update(user_groups[user])
 
     screen_width = get_output_width(80)
     screen_width = int(screen_width) - 1
@@ -286,7 +293,7 @@ def main(parser):
         name_patterns = []
         for (node,partition),meta in sorted(g):
             job_meta = node_job_meta[node]
-            search_target = job_meta.job_ids | job_meta.user_ids | set([node])
+            search_target = job_meta.job_ids | job_meta.job_usernames | job_meta.job_accounts | job_meta.job_groups | set([node])
             highlight = any(pattern.search(x) != None for x in search_target)
             mem_available = max(0, meta.mem - sum(job_meta.job_mem_usages))
             bar = make_bar(meta, mem_available == 0)
