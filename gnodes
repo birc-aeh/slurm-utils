@@ -235,6 +235,7 @@ def main():
         node_meta[(node,partition)] = NodeMeta(load, in_use, unavailable, cores, int(mem)*1024*1024, gpus, state)
         node_job_meta[node] = JobMeta(set(), set(), list(), set(), set())
 
+    empty_set = set()
     result = []
     for line in stripped_lines_from_cmd(JOB_CMD):
         jobid,state,user,mem,nodes,partition,account = line.split(';')
@@ -247,7 +248,7 @@ def main():
             node_job_meta[n].job_usernames.add(user)
             node_job_meta[n].job_mem_usages.append(mem)
             node_job_meta[n].job_accounts.add(account)
-            node_job_meta[n].job_groups.update(user_groups[user])
+            node_job_meta[n].job_groups.update(user_groups.get(user, empty_set))
 
     screen_width = get_output_width(80)
     screen_width = int(screen_width) - 1
