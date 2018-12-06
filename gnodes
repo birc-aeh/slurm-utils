@@ -10,11 +10,39 @@
 # Copyright 2015 Anders Halager <aeh@birc.au.dk>
 #
 # LICENSE: MIT
+"""
+gnodes provdies a graphical overview of a Slurm cluster
+
+Usage:
+    gnodes <search terms>
+
+Output:
+    All partitions and the nodes in them. Each node shows available
+    memory and a symbol for each core in the machine.
+    The meaning of each type of symbol is described in the following
+    table:
+
+
+    Symbol | Meaning
+         . | Available core
+         _ | Allocated core
+         O | Loaded core
+         ! | Load is significantly higher than allocated core count
+         ? | Load is unknow
+
+    Search terms are regular expressions that match on node name and
+    users/ids of running jobs. If anything matches the node will be
+    visually highlighted.
+
+Input environment variables:
+    GNODES_IGNORE   Regex for partitions to hide
+"""
 
 import os, sys
 import re
 import subprocess
 import grp
+from argparse import ArgumentParser, SUPPRESS
 from math import ceil, floor
 from collections import namedtuple
 from itertools import groupby, chain
@@ -90,10 +118,6 @@ GNODES_SHORT_HEADER = os.environ.get("GNODES_SHORT_HEADER", None)
 GNODES_IGNORE = re.compile(os.environ.get("GNODES_IGNORE", '$^'))
 pattern = re.compile('$^')
 searching = False
-
-if len(sys.argv) >= 2:
-    pattern = re.compile('|'.join("(^%s$)" % p for p in sys.argv[1:]))
-    searching = True
 
 def is_float(x):
     try:
@@ -207,7 +231,7 @@ def make_footer(field_width, nfields):
 def clamp(n, lo, hi):
     return max(lo, min(hi, n))
 
-def main():
+def main(parser):
     use_colors = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
     node_meta = {}
     node_job_meta = {}
@@ -259,6 +283,11 @@ def main():
         print NORMAL_BEGIN
 
     for k,g in groupby(sorted(node_meta.iteritems(), key=group_id), key=group_id):
+
+        if parser.partition:
+            if not k.partition in [ parser.partition ]:
+                continue
+
         if GNODES_IGNORE.search(k.partition):
             continue
         info_fields = []
@@ -294,35 +323,16 @@ def main():
     else:
         print NORMAL_END
 
-def usage():
-    print """gnodes provdies a graphical overview of a Slurm cluster
-
-Usage:
-    gnodes <search terms>
-
-Output:
-    All partitions and the nodes in them. Each node shows available
-    memory and a symbol for each core in the machine.
-    The meaning of each type of symbol is described in the following
-    table:
-
-    Symbol | Meaning
-    {base:>6} | Available core
-    {alloc:>6} | Allocated core
-    {use:>6} | Loaded core
-    {overuse:>6} | Load is significantly higher than allocated core count
-    {unkn:>6} | Load is unknown
-
-    Search terms are regular expressions that match on node name and
-    users/ids of running jobs. If anything matches the node will be
-    visually highlighted.
-
-Input environment variables:
-    GNODES_IGNORE   Regex for partitions to hide
-""".format(base=BASE,alloc=ALLOCATED,use=USE,overuse=OVERUSE,unkn=UNKNOWN_USE)
 
 if __name__ == "__main__":
-    if "-h" in sys.argv or "--help" in sys.argv:
-        usage()
-        sys.exit(0)
-    main()
+
+    parser = ArgumentParser(usage=__doc__)
+    parser.add_argument("search", metavar="SEARCH", help="Regular expression search terms for node/user(s)", nargs='*')
+    parser.add_argument("-p", "--partition", dest="partition", help="Only show nodes for partition", default=None)
+    args = parser.parse_args()
+
+    if args.search:
+        pattern = re.compile('|'.join("(^%s$)" % p for p in args.search))
+        searching = True
+
+    main(args)
