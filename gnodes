@@ -287,9 +287,9 @@ def main(parser):
         if len(parser.partition) > 0:
             if k.partition not in parser.partition:
                 continue
-
-        if GNODES_IGNORE.search(k.partition):
+        elif GNODES_IGNORE.search(k.partition):
             continue
+
         info_fields = []
         name_patterns = []
         for (node,partition),meta in sorted(g):
