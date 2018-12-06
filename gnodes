@@ -49,7 +49,7 @@ except:
             yield p
 
 NodeMeta = namedtuple('NodeMeta', 'load in_use unavailable cores mem gpus state')
-JobMeta  = namedtuple('JobMeta',  'job_ids user_ids job_mem_usages job_accounts')
+JobMeta  = namedtuple('JobMeta',  'job_ids job_usernames job_mem_usages job_accounts')
 Group    = namedtuple('Group',    'partition cores mem gpus')
 
 # Symbols:
@@ -238,7 +238,7 @@ def main():
         ex_nodes = list(expand_hostlist(nodes))
         for n in ex_nodes:
             node_job_meta[n].job_ids.add(jobid)
-            node_job_meta[n].user_ids.add(user)
+            node_job_meta[n].job_usernames.add(user)
             node_job_meta[n].job_mem_usages.append(mem)
             node_job_meta[n].job_accounts.add(account)
 
@@ -257,7 +257,7 @@ def main():
         name_patterns = []
         for (node,partition),meta in sorted(g):
             job_meta = node_job_meta[node]
-            search_target = job_meta.job_ids | job_meta.user_ids | job_meta.job_accounts | set([node])
+            search_target = job_meta.job_ids | job_meta.job_usernames | job_meta.job_accounts | set([node])
             highlight = any(pattern.search(x) != None for x in search_target)
             mem_available = max(0, meta.mem - sum(job_meta.job_mem_usages))
             bar = make_bar(meta, mem_available == 0)
