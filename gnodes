@@ -116,8 +116,6 @@ def format_normal_partition(s):
 
 GNODES_SHORT_HEADER = os.environ.get("GNODES_SHORT_HEADER", None)
 GNODES_IGNORE = re.compile(os.environ.get("GNODES_IGNORE", '$^'))
-pattern = re.compile('$^')
-searching = False
 
 def is_float(x):
     try:
@@ -231,7 +229,7 @@ def make_footer(field_width, nfields):
 def clamp(n, lo, hi):
     return max(lo, min(hi, n))
 
-def main(parser):
+def main(partitions, groups, accounts, search_pattern):
     use_colors = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
     node_meta = {}
     node_job_meta = {}
@@ -284,8 +282,8 @@ def main(parser):
 
     for k,g in groupby(sorted(node_meta.iteritems(), key=group_id), key=group_id):
 
-        if len(parser.partition) > 0:
-            if k.partition not in parser.partition:
+        if len(partitions) > 0:
+            if k.partition not in partitions:
                 continue
         elif GNODES_IGNORE.search(k.partition):
             continue
@@ -295,7 +293,9 @@ def main(parser):
         for (node,partition),meta in sorted(g):
             job_meta = node_job_meta[node]
             search_target = job_meta.job_ids | job_meta.job_usernames | job_meta.job_accounts | job_meta.job_groups | set([node])
-            highlight = any(pattern.search(x) != None for x in search_target)
+            highlight = any(search_pattern.search(x) != None for x in search_target)
+            highlight = highlight or len(accounts & job_meta.job_accounts) > 0
+            highlight = highlight or len(groups &job_meta.job_groups) > 0
             mem_available = max(0, meta.mem - sum(job_meta.job_mem_usages))
             bar = make_bar(meta, mem_available == 0)
             if meta.in_use == meta.cores:
@@ -325,14 +325,18 @@ def main(parser):
 
 
 if __name__ == "__main__":
-
     parser = ArgumentParser(usage=__doc__)
     parser.add_argument("search", metavar="SEARCH", help="Regular expression search terms for node/user(s)", nargs='*')
-    parser.add_argument("-p", "--partition", dest="partition", help="Only show nodes for partition", action="append", default=list())
+    parser.add_argument("-p", "--partition", metavar="PARTITION", dest="partitions", help="Only show nodes for partition", action="append", default=list())
+    parser.add_argument("-g", "--group", metavar="GROUP", dest="groups", help="Highlight nodes with jobs from a member of the group", action="append", default=list())
+    parser.add_argument("-a", "--account", metavar="ACCOUNT", dest="accounts", help="Highlight nodes with jobs running under the account", action="append", default=list())
     args = parser.parse_args()
 
     if args.search:
         pattern = re.compile('|'.join("(^%s$)" % p for p in args.search))
         searching = True
+    else:
+        pattern = re.compile('$^')
+        searching = False
 
-    main(args)
+    main(args.partitions, set(args.groups), set(args.accounts), pattern)
