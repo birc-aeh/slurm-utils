@@ -14,6 +14,7 @@
 import os, sys
 import re
 import subprocess
+import grp
 from math import ceil, floor
 from collections import namedtuple
 from itertools import groupby, chain
@@ -49,7 +50,7 @@ except:
             yield p
 
 NodeMeta = namedtuple('NodeMeta', 'load in_use unavailable cores mem gpus state')
-JobMeta  = namedtuple('JobMeta',  'job_ids job_usernames job_mem_usages job_accounts')
+JobMeta  = namedtuple('JobMeta',  'job_ids job_usernames job_mem_usages job_accounts job_groups')
 Group    = namedtuple('Group',    'partition cores mem gpus')
 
 # Symbols:
@@ -213,6 +214,11 @@ def main():
     default_partition = ""
     partition_walltimes = dict()
 
+    user_groups = dict()
+    for group in grp.getgrall():
+        for member in group.gr_mem:
+            user_groups.setdefault(member, set()).add(group.gr_name)
+
     for line in stripped_lines_from_cmd(NODE_CMD):
         node,cpuinfo,mem,load,state,partition,max_walltime,gres = line.split(';')
 
@@ -227,7 +233,7 @@ def main():
             default_partition = partition
         partition_walltimes[partition] = max_walltime
         node_meta[(node,partition)] = NodeMeta(load, in_use, unavailable, cores, int(mem)*1024*1024, gpus, state)
-        node_job_meta[node] = JobMeta(set(), set(), list(), set())
+        node_job_meta[node] = JobMeta(set(), set(), list(), set(), set())
 
     result = []
     for line in stripped_lines_from_cmd(JOB_CMD):
@@ -241,6 +247,7 @@ def main():
             node_job_meta[n].job_usernames.add(user)
             node_job_meta[n].job_mem_usages.append(mem)
             node_job_meta[n].job_accounts.add(account)
+            node_job_meta[n].job_groups.update(user_groups[user])
 
     screen_width = get_output_width(80)
     screen_width = int(screen_width) - 1
@@ -257,7 +264,7 @@ def main():
         name_patterns = []
         for (node,partition),meta in sorted(g):
             job_meta = node_job_meta[node]
-            search_target = job_meta.job_ids | job_meta.job_usernames | job_meta.job_accounts | set([node])
+            search_target = job_meta.job_ids | job_meta.job_usernames | job_meta.job_accounts | job_meta.job_groups | set([node])
             highlight = any(pattern.search(x) != None for x in search_target)
             mem_available = max(0, meta.mem - sum(job_meta.job_mem_usages))
             bar = make_bar(meta, mem_available == 0)
