@@ -300,13 +300,7 @@ def main(parser):
             bar = make_bar(meta, mem_available == 0)
             if meta.in_use == meta.cores:
                 mem_available = 0
-            # add extra spaces for formatting
-            if len(node) == 4:
-                node = node + "  "
-            if len(node) == 5:
-                node =node + " "
-
-            info = "%s %4.0fG  %s" % (node, mem_available / (2**30), bar.center(meta.cores))
+            info = "%-6s %4.0fG  %s" % (node, mem_available / (2**30), bar.center(meta.cores))
             info_fields.append(info)
             name_patterns.append(highlight and NODENAME_MATCHED or NODENAME_UNMATCHED)
         max_field_width = max(len(i) for i in info_fields)
