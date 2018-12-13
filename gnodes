@@ -91,23 +91,8 @@ UNKNOWN_USE = '?'
 NODE_CMD = ['sinfo', "--format=%N;%C;%m;%O;%T;%P;%l;%G", '--noheader', '-a', '--Node']
 JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P;%a", '--states=R', '--noheader', '-a']
 
-# Using dimming:
-# I think it's nicer, but not all terminals support it
-# NODENAME_MATCHED   = "\033[0m%s\033[2m"
-# NODENAME_UNMATCHED = "%s"
-# SEARCHING_BEGIN    = ""
-# SEARCHING_END      = "\033[2m"
-# NORMAL_BEGIN       = ""
-# NORMAL_END         = ""
-
-# Highlighting by reversing background and foreground colors.
-# Should be supported everywhere (famous last words)
 NODENAME_MATCHED   = "\033[7m%s\033[0m"
 NODENAME_UNMATCHED = "%s"
-SEARCHING_BEGIN    = ""
-SEARCHING_END      = ""
-NORMAL_BEGIN       = ""
-NORMAL_END         = ""
 
 def format_default_partition(s):
     return "\033[1m%s\033[0m" % s
@@ -281,11 +266,6 @@ def main(partitions, groups, accounts, search_pattern):
     screen_width = get_output_width(80)
     screen_width = int(screen_width) - 1
 
-    if searching:
-        print SEARCHING_BEGIN
-    else:
-        print NORMAL_BEGIN
-
     for k,g in groupby(sorted(node_meta.iteritems(), key=group_id), key=group_id):
 
         if len(partitions) > 0:
@@ -323,11 +303,6 @@ def main(partitions, groups, accounts, search_pattern):
         for r in xrange(0, rows):
             print "| %s |" % " | ".join(pat % s for pat,s in zip(name_patterns, info_fields)[r::rows])
         print make_footer(max_field_width, fields_per_row)
-
-    if searching:
-        print SEARCHING_END
-    else:
-        print NORMAL_END
 
 
 if __name__ == "__main__":
