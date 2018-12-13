@@ -301,7 +301,7 @@ def main(partitions, groups, accounts, search_pattern):
             search_target = job_meta.job_ids | job_meta.job_usernames | job_meta.job_accounts | job_meta.job_groups | set([node])
             highlight = any(search_pattern.search(x) != None for x in search_target)
             highlight = highlight or len(accounts & job_meta.job_accounts) > 0
-            highlight = highlight or len(groups &job_meta.job_groups) > 0
+            highlight = highlight or len(groups & job_meta.job_groups) > 0
             mem_available = max(0, meta.mem - sum(job_meta.job_mem_usages))
             bar = make_bar(meta, mem_available == 0)
             if meta.in_use == meta.cores:
