@@ -81,10 +81,16 @@ def elapsed_to_seconds(elapsed):
     return dd*24*60*60 + hh*60*60 + mm*60 + ss
 
 def f_rss(x, meta):
+    if x == 0:
+        return "--"
     return "%s (%s)" % (format_bs(x), meta.MaxRSSNode)
 def f_dw(x, meta):
+    if x == 0:
+        return "--"
     return "%s (%s)" % (format_bs(x), meta.MaxDiskWriteNode)
 def f_dr(x, meta):
+    if x == 0:
+        return "--"
     return "%s (%s)" % (format_bs(x), meta.MaxDiskReadNode)
 
 def f_cpu(x, meta):
