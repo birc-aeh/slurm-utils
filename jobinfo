@@ -45,7 +45,7 @@ def gpu_str(s=None):
     return int(m.group('num_gpus'))
 
 def byte_size(s=None):
-    if s is None or s == "16?":
+    if s in [None, "", "16?"]:
         return 0.0
     m = {'K': 10, 'M': 20, 'G': 30, 'T': 40, 'P': 50, 'E': 60}
     scale = 2 ** m.get(s[-1], 0)
