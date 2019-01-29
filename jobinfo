@@ -133,7 +133,7 @@ def f_date(x, meta):
 def f_state(x, meta):
     states = set(x.split(","))
     if len(states) > 1:
-        states = states - set(["COMPLETED"])
+        states = states - set(["COMPLETED", ""])
     reason = meta.reason
     if reason != '':
         reason = ' ' + reason
