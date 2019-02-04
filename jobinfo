@@ -14,10 +14,13 @@ import sys
 import time
 from collections import namedtuple as NT
 
-def append(l, x):
-    if l == '':
-        return x
-    return ','.join(sorted(set(l.split(',') + [x])))
+def union(a, b):
+    return a | b
+
+def str_set(x=None):
+    if x in [None, '']:
+        return set()
+    return set([x])
 
 def keep_first(a, b):
     return a == '' and b or a
@@ -46,7 +49,7 @@ def gpu_str(s=None):
 
 def byte_size(s=None):
     if s in [None, "", "16?"]:
-        return 0.0
+        return -1.0
     m = {'K': 10, 'M': 20, 'G': 30, 'T': 40, 'P': 50, 'E': 60}
     scale = 2 ** m.get(s[-1], 0)
     if scale != 1:
@@ -81,17 +84,17 @@ def elapsed_to_seconds(elapsed):
     return dd*24*60*60 + hh*60*60 + mm*60 + ss
 
 def f_rss(x, meta):
-    if x == 0:
+    if x < 0:
         return "--"
-    return "%s (%s)" % (format_bs(x), meta.MaxRSSNode)
+    return "%s (%s)" % (format_bs(x), ",".join(meta.MaxRSSNode))
 def f_dw(x, meta):
-    if x == 0:
+    if x < 0:
         return "--"
-    return "%s (%s)" % (format_bs(x), meta.MaxDiskWriteNode)
+    return "%s (%s)" % (format_bs(x), ",".join(meta.MaxDiskWriteNode))
 def f_dr(x, meta):
-    if x == 0:
+    if x < 0:
         return "--"
-    return "%s (%s)" % (format_bs(x), meta.MaxDiskReadNode)
+    return "%s (%s)" % (format_bs(x), ",".join(meta.MaxDiskReadNode))
 
 def f_cpu(x, meta):
     total = elapsed_to_seconds(meta.TotalCPU)
@@ -130,8 +133,7 @@ def f_date(x, meta):
     if str(x).lower() == "unknown":
         return "--"
     return str(x)
-def f_state(x, meta):
-    states = set(x.split(","))
+def f_state(states, meta):
     if len(states) > 1:
         states = states - set(["COMPLETED", ""])
     reason = meta.reason
@@ -154,7 +156,7 @@ FIELDS = [
         Field("NodeList",            str,        keep_first,   True,  False, f_str,     "Nodes"),
         Field("ncpus",               int,        max,          True,  False, f_str,     "Cores"),
         Field("AllocTRES",           gpu_str,    max,          True,  False, f_str,     "GPUs"),
-        Field("State",               str,        append,       True,  False, f_state,   "State"),
+        Field("State",               str_set,    union,        True,  False, f_state,   "State"),
         Field("Submit",              str,        keep_first,   True,  False, f_str,     "Submit"),
         Field("start",               date_str,   min,          True,  False, f_date,    "Start"),
         Field("end",                 str,        time_max,     True,  False, f_date,    "End"),
@@ -168,9 +170,9 @@ FIELDS = [
         Field("MaxDiskWrite",        byte_size,  max,          True,  True,  f_dw,      "Max Disk Write"),
         Field("MaxDiskRead",         byte_size,  max,          True,  True,  f_dr,      "Max Disk Read"),
 
-        Field("MaxRSSNode",          str,        append,       False, True,  None,      ""),
-        Field("MaxDiskWriteNode",    str,        append,       False, True,  None,      ""),
-        Field("MaxDiskReadNode",     str,        append,       False, True,  None,      ""),
+        Field("MaxRSSNode",          str_set,    union,        False, True,  None,      ""),
+        Field("MaxDiskWriteNode",    str_set,    union,        False, True,  None,      ""),
+        Field("MaxDiskReadNode",     str_set,    union,        False, True,  None,      ""),
         Field("Comment",             str,        keep_first,   False, False, None,      ""),
         ]
 
@@ -193,7 +195,7 @@ def get_values(jobid):
     info = subprocess.Popen(['sacct', FORMAT_STR, '--parsable', '--noheader', '-j', jobid], stdout=subprocess.PIPE)
     xs = []
     for line in info.stdout:
-        xs.append([(s != "" and ctor(s) or ctor()) for ctor, s in zip(FIELD_CTORS, line.strip().split('|'))])
+        xs.append([ctor(s != "" and s or None) for ctor, s in zip(FIELD_CTORS, line.strip().split('|'))])
     if len(xs) == 0:
         print >>sys.stderr, "No such job"
         sys.exit(1)
