@@ -34,13 +34,6 @@ def time_max(a, b):
         return a
     return max(a, b)
 
-def time_min(a, b):
-    if a in ['', 'INVALID', 'UNLIMITED']:
-        return b
-    if b in ['', 'INVALID', 'UNLIMITED']:
-        return a
-    return max(a, b)
-
 def gpu_str(s=None):
     if s is None or "gres/gpu=" not in s.lower():
         return 0
@@ -87,10 +80,12 @@ def f_rss(x, meta):
     if x < 0:
         return "--"
     return "%s (%s)" % (format_bs(x), ",".join(meta.MaxRSSNode))
+
 def f_dw(x, meta):
     if x < 0:
         return "--"
     return "%s (%s)" % (format_bs(x), ",".join(meta.MaxDiskWriteNode))
+
 def f_dr(x, meta):
     if x < 0:
         return "--"
@@ -129,10 +124,12 @@ def f_time(x, meta):
 
 def f_str(x, meta):
     return str(x)
+
 def f_date(x, meta):
     if str(x).lower() == "unknown":
         return "--"
     return str(x)
+
 def f_state(states, meta):
     if len(states) > 1:
         states = states - set(["COMPLETED", ""])
@@ -195,11 +192,13 @@ def get_values(jobid):
     info = subprocess.Popen(['sacct', FORMAT_STR, '--parsable', '--noheader', '-j', jobid], stdout=subprocess.PIPE)
     xs = []
     for line in info.stdout:
-        xs.append([ctor(s != "" and s or None) for ctor, s in zip(FIELD_CTORS, line.strip().split('|'))])
+        fields = line.strip().split('|')
+        xs.append([ctor(s) for ctor, s in zip(FIELD_CTORS, fields)])
     if len(xs) == 0:
         print >>sys.stderr, "No such job"
         sys.exit(1)
     return xs
+
 def get_live_values(jobid):
     info = subprocess.Popen(['sstat', FORMAT_LIVE_STR, '--parsable', '--noheader', '-a', '-j', jobid], stdout=subprocess.PIPE)
     xs = []
@@ -220,12 +219,12 @@ def main(jobid):
     y = combine(get_values(jobid))
     meta = Meta._make(y + ['', ''])
     ys = [y]
-    if meta.State == "RUNNING" and (os.getuid() == 0 or meta.User == whoami()):
+    if "RUNNING" in meta.State and (os.getuid() == 0 or meta.User == whoami()):
         # get more info from sstat
         tmp = get_live_values("%s,%s.batch" % (jobid, jobid))
         if len(tmp) != 0:
             ys.append(combine(tmp))
-    if meta.State == "PENDING":
+    if "PENDING" in meta.State:
         info = subprocess.Popen(['squeue', '--format=%E;%R', '--noheader', '-a', '-j', jobid], stdout=subprocess.PIPE)
         deps, reason = info.stdout.readline().strip().split(";")
         dependencies = deps
