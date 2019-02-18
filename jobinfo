@@ -145,32 +145,33 @@ def f_state(states, meta):
         deps = " (%s)" % deps
     return ','.join(states) + reason + deps
 
+hide, show = False, True
 Field = NT('Field', 'name ctor combinator shown prefer_live formatter desc')
 FIELDS = [
-        Field("JobName",             str,        keep_first,   True,  False, f_str,     "Name"),
-        Field("User",                str,        keep_first,   True,  False, f_str,     "User"),
-        Field("Partition",           str,        keep_first,   True,  False, f_str,     "Partition"),
-        Field("NodeList",            str,        keep_first,   True,  False, f_str,     "Nodes"),
-        Field("ncpus",               int,        max,          True,  False, f_str,     "Cores"),
-        Field("AllocTRES",           gpu_str,    max,          True,  False, f_str,     "GPUs"),
-        Field("State",               str_set,    set.union,    True,  False, f_state,   "State"),
-        Field("Submit",              str,        keep_first,   True,  False, f_str,     "Submit"),
-        Field("start",               date_str,   min,          True,  False, f_date,    "Start"),
-        Field("end",                 str,        time_max,     True,  False, f_date,    "End"),
-        Field("timelimit",           str,        time_max,     True,  False, f_time,    "Reserved walltime"),
-        Field("elapsed",             str,        time_max,     True,  False, f_time,    "Used walltime"),
-        Field("TotalCPU",            str,        max,          True,  False, f_time,    "Used CPU time"),
-        Field("UserCPU",             str,        max,          True,  False, f_cpu,     "% User (Computation)"),
-        Field("SystemCPU",           str,        max,          True,  False, f_cpu,     "% System (I/O)"),
-        Field("ReqMem",              str,        keep_first,   True,  False, f_mem,     "Mem reserved"),
-        Field("MaxRSS",              byte_size,  max,          True,  True,  f_rss,     "Max Mem used"),
-        Field("MaxDiskWrite",        byte_size,  max,          True,  True,  f_dw,      "Max Disk Write"),
-        Field("MaxDiskRead",         byte_size,  max,          True,  True,  f_dr,      "Max Disk Read"),
+        Field("JobName",             str,        keep_first,   show,  False, f_str,     "Name"),
+        Field("User",                str,        keep_first,   show,  False, f_str,     "User"),
+        Field("Partition",           str,        keep_first,   show,  False, f_str,     "Partition"),
+        Field("NodeList",            str,        keep_first,   show,  False, f_str,     "Nodes"),
+        Field("ncpus",               int,        max,          show,  False, f_str,     "Cores"),
+        Field("AllocTRES",           gpu_str,    max,          show,  False, f_str,     "GPUs"),
+        Field("State",               str_set,    set.union,    show,  False, f_state,   "State"),
+        Field("Submit",              str,        keep_first,   show,  False, f_str,     "Submit"),
+        Field("start",               date_str,   min,          show,  False, f_date,    "Start"),
+        Field("end",                 str,        time_max,     show,  False, f_date,    "End"),
+        Field("timelimit",           str,        time_max,     show,  False, f_time,    "Reserved walltime"),
+        Field("elapsed",             str,        time_max,     show,  False, f_time,    "Used walltime"),
+        Field("TotalCPU",            str,        max,          show,  False, f_time,    "Used CPU time"),
+        Field("UserCPU",             str,        max,          show,  False, f_cpu,     "% User (Computation)"),
+        Field("SystemCPU",           str,        max,          show,  False, f_cpu,     "% System (I/O)"),
+        Field("ReqMem",              str,        keep_first,   show,  False, f_mem,     "Mem reserved"),
+        Field("MaxRSS",              byte_size,  max,          show,  True,  f_rss,     "Max Mem used"),
+        Field("MaxDiskWrite",        byte_size,  max,          show,  True,  f_dw,      "Max Disk Write"),
+        Field("MaxDiskRead",         byte_size,  max,          show,  True,  f_dr,      "Max Disk Read"),
 
-        Field("MaxRSSNode",          str_set,    set.union,    False, True,  None,      ""),
-        Field("MaxDiskWriteNode",    str_set,    set.union,    False, True,  None,      ""),
-        Field("MaxDiskReadNode",     str_set,    set.union,    False, True,  None,      ""),
-        Field("Comment",             str,        keep_first,   False, False, None,      ""),
+        Field("MaxRSSNode",          str_set,    set.union,    hide,  True,  None,      ""),
+        Field("MaxDiskWriteNode",    str_set,    set.union,    hide,  True,  None,      ""),
+        Field("MaxDiskReadNode",     str_set,    set.union,    hide,  True,  None,      ""),
+        Field("Comment",             str,        keep_first,   hide,  False, None,      ""),
         ]
 
 FIELD_NAMES = [f.name for f in FIELDS]
