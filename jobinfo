@@ -14,25 +14,37 @@ import sys
 import time
 from collections import namedtuple as NT
 
-def union(a, b):
-    return a | b
+def parse_time(t):
+    # Format: [DD-[hh:]]mm:ss
+    time_parts = re.compile(r'(((?P<days>\d+)-)?(?P<hours>\d\d):)?' +
+                            r'(?P<minutes>\d\d):(?P<seconds>\d\d(\.\d+)?)')
+    m = time_parts.match(t)
+    if m is None:
+        return 0.0, 0, 0, 0
+    ss = float(m.group('seconds'))
+    mm = int(m.group('minutes'))
+    hh = int(m.group('hours') or '0')
+    dd = int(m.group('days') or '0')
+    return ss, mm, hh, dd
 
+def elapsed_to_seconds(elapsed):
+    ss, mm, hh, dd = parse_time(elapsed)
+    return dd*24*60*60 + hh*60*60 + mm*60 + ss
+
+def format_bs(x):
+    postfix = ' KMGTPE'
+    e = int(math.log(x+1, 2)/10)
+    return "%.2f%s" % (x / 2**(10*e), postfix[e])
+
+def whoami():
+    import pwd
+    return pwd.getpwuid(os.getuid()).pw_name
+
+# Constructors / parsers:
 def str_set(x=None):
     if x in [None, '']:
         return set()
     return set([x])
-
-def keep_first(a, b):
-    return a == '' and b or a
-
-def time_max(a, b):
-    if 'UNLIMITED' in [a, b]:
-        return 'UNLIMITED'
-    if a in ['', 'INVALID']:
-        return b
-    if b in ['', 'INVALID']:
-        return a
-    return max(a, b)
 
 def gpu_str(s=None):
     if s is None or "gres/gpu=" not in s.lower():
@@ -54,28 +66,20 @@ def date_str(s=None):
         return "9999-01-01T00:00:00"
     return s
 
-def format_bs(x):
-    postfix = ' KMGTPE'
-    e = int(math.log(x+1, 2)/10)
-    return "%.2f%s" % (x / 2**(10*e), postfix[e])
+# Combinators:
+def keep_first(a, b):
+    return a == '' and b or a
 
-# Format: [DD-[hh:]]mm:ss
-time_parts = re.compile(r'(((?P<days>\d+)-)?(?P<hours>\d\d):)?' +
-                        r'(?P<minutes>\d\d):(?P<seconds>\d\d(\.\d+)?)')
-def parse_time(t):
-    m = time_parts.match(t)
-    if m is None:
-        return 0.0, 0, 0, 0
-    ss = float(m.group('seconds'))
-    mm = int(m.group('minutes'))
-    hh = int(m.group('hours') or '0')
-    dd = int(m.group('days') or '0')
-    return ss, mm, hh, dd
+def time_max(a, b):
+    if 'UNLIMITED' in [a, b]:
+        return 'UNLIMITED'
+    if a in ['', 'INVALID']:
+        return b
+    if b in ['', 'INVALID']:
+        return a
+    return max(a, b)
 
-def elapsed_to_seconds(elapsed):
-    ss, mm, hh, dd = parse_time(elapsed)
-    return dd*24*60*60 + hh*60*60 + mm*60 + ss
-
+# Formatters:
 def f_rss(x, meta):
     if x < 0:
         return "--"
@@ -141,10 +145,6 @@ def f_state(states, meta):
         deps = " (%s)" % deps
     return ','.join(states) + reason + deps
 
-def whoami():
-    import pwd
-    return pwd.getpwuid(os.getuid()).pw_name
-
 Field = NT('Field', 'name ctor combinator shown prefer_live formatter desc')
 FIELDS = [
         Field("JobName",             str,        keep_first,   True,  False, f_str,     "Name"),
@@ -153,7 +153,7 @@ FIELDS = [
         Field("NodeList",            str,        keep_first,   True,  False, f_str,     "Nodes"),
         Field("ncpus",               int,        max,          True,  False, f_str,     "Cores"),
         Field("AllocTRES",           gpu_str,    max,          True,  False, f_str,     "GPUs"),
-        Field("State",               str_set,    union,        True,  False, f_state,   "State"),
+        Field("State",               str_set,    set.union,    True,  False, f_state,   "State"),
         Field("Submit",              str,        keep_first,   True,  False, f_str,     "Submit"),
         Field("start",               date_str,   min,          True,  False, f_date,    "Start"),
         Field("end",                 str,        time_max,     True,  False, f_date,    "End"),
@@ -167,9 +167,9 @@ FIELDS = [
         Field("MaxDiskWrite",        byte_size,  max,          True,  True,  f_dw,      "Max Disk Write"),
         Field("MaxDiskRead",         byte_size,  max,          True,  True,  f_dr,      "Max Disk Read"),
 
-        Field("MaxRSSNode",          str_set,    union,        False, True,  None,      ""),
-        Field("MaxDiskWriteNode",    str_set,    union,        False, True,  None,      ""),
-        Field("MaxDiskReadNode",     str_set,    union,        False, True,  None,      ""),
+        Field("MaxRSSNode",          str_set,    set.union,    False, True,  None,      ""),
+        Field("MaxDiskWriteNode",    str_set,    set.union,    False, True,  None,      ""),
+        Field("MaxDiskReadNode",     str_set,    set.union,    False, True,  None,      ""),
         Field("Comment",             str,        keep_first,   False, False, None,      ""),
         ]
 
