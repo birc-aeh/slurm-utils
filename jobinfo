@@ -146,7 +146,7 @@ def f_state(states, meta):
     return ','.join(states) + reason + deps
 
 hide, show = False, True
-Field = NT('Field', 'name ctor combinator shown prefer_live formatter desc')
+Field = NT('Field', 'name ctor combinator shown prefer_sstat formatter desc')
 FIELDS = [
         Field("JobName",             str,        keep_first,   show,  False, f_str,     "Name"),
         Field("User",                str,        keep_first,   show,  False, f_str,     "User"),
@@ -174,11 +174,11 @@ FIELDS = [
         ]
 
 FIELD_NAMES = [f.name for f in FIELDS]
-FIELD_NAMES_LIVE = [f.name for f in FIELDS if f.prefer_live]
+FIELD_NAMES_SSTAT = [f.name for f in FIELDS if f.prefer_sstat]
 FIELD_CTORS = [f.ctor for f in FIELDS]
 FIELD_COMB = [f.combinator for f in FIELDS]
 FORMAT_STR = "--format=%s" % (",".join(FIELD_NAMES))
-FORMAT_LIVE_STR = "--format=%s" % (",".join(FIELD_NAMES_LIVE))
+FORMAT_SSTAT_STR = "--format=%s" % (",".join(FIELD_NAMES_SSTAT))
 Meta = NT('Meta', FIELD_NAMES + ['dependencies', 'reason'])
 
 def combine(xs):
@@ -199,15 +199,15 @@ def get_values(jobid):
         sys.exit(1)
     return xs
 
-def get_live_values(jobid):
-    info = subprocess.Popen(['sstat', FORMAT_LIVE_STR, '--parsable', '--noheader', '-a', '-j', jobid], stdout=subprocess.PIPE)
+def get_sstat_values(jobid):
+    info = subprocess.Popen(['sstat', FORMAT_SSTAT_STR, '--parsable', '--noheader', '-a', '-j', jobid], stdout=subprocess.PIPE)
     xs = []
     for line in info.stdout:
         j = 0
         vals = line.strip().split('|')
         x = []
         for f in FIELDS:
-            if f.prefer_live:
+            if f.prefer_sstat:
                 x.append(f.ctor(vals[j]))
                 j += 1
             else:
@@ -221,7 +221,7 @@ def main(jobid):
     ys = [y]
     if "RUNNING" in meta.State and (os.getuid() == 0 or meta.User == whoami()):
         # get more info from sstat
-        tmp = get_live_values("%s,%s.batch" % (jobid, jobid))
+        tmp = get_sstat_values("%s,%s.batch" % (jobid, jobid))
         if len(tmp) != 0:
             ys.append(combine(tmp))
     if "PENDING" in meta.State:
@@ -234,7 +234,7 @@ def main(jobid):
     y = combine(ys)
     meta = Meta._make(y + [dependencies, reason])
 
-    for i,(name,parse,comb,show,prefer_live,format,desc) in enumerate(FIELDS):
+    for i,(name,parse,comb,show,prefer_sstat,format,desc) in enumerate(FIELDS):
         val = y[i]
         if show:
             print "%-20s: %s" % (desc, format(val, meta))
