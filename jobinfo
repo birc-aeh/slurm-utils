@@ -171,7 +171,6 @@ FIELDS = [
         Field("MaxRSSNode",          str_set,    set.union,    hide,  True,  None,      ""),
         Field("MaxDiskWriteNode",    str_set,    set.union,    hide,  True,  None,      ""),
         Field("MaxDiskReadNode",     str_set,    set.union,    hide,  True,  None,      ""),
-        Field("Comment",             str,        keep_first,   hide,  False, None,      ""),
         ]
 
 FIELD_NAMES = [f.name for f in FIELDS]
