@@ -77,7 +77,7 @@ except:
         else:
             yield p
 
-NodeMeta = namedtuple('NodeMeta', 'load in_use unavailable cores mem gpus state')
+NodeMeta = namedtuple('NodeMeta', 'load in_use cores mem gpus state')
 JobMeta  = namedtuple('JobMeta',  'job_ids job_usernames job_mem_usages job_accounts job_groups')
 Group    = namedtuple('Group',    'partition cores mem gpus')
 
@@ -88,7 +88,8 @@ USE         = 'O'
 OVERUSE     = '!'
 UNKNOWN_USE = '?'
 
-NODE_CMD = ['sinfo', "--format=%N;%C;%m;%O;%T;%P;%l;%G", '--noheader', '-a', '--Node']
+PARTITION_CMD = ['scontrol', 'show', 'partition', '-a', '--oneliner']
+NODE_CMD = ['scontrol', 'show', 'node', '-a', '--oneliner']
 JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P;%a", '--states=R', '--noheader', '-a']
 
 NODENAME_MATCHED   = "\033[7m%s\033[0m"
@@ -115,32 +116,28 @@ DOWN        =  4 # Node is down
 RESERVED    =  8 # Node is reserved
 MAINTENANCE = 16 # Node is reserved specifically for maintenance
 
-def parse_suffix(s):
-    suffix_map = {"*": NO_NEW, "$": NO_NEW, "#": 0, "~": 0}
-    suf = s[-1]
-    if suf in suffix_map:
-        return s[:-1], suffix_map[suf]
-    return s, 0
-
 def parse_state(raw):
-    s,suf_state = parse_suffix(raw)
-    return suf_state | state_map.get(s, UNKNOWN)
+    res = 0
+    raw = raw.lower()
+    if "drain" in raw or "down" in raw:
+        res |= NO_NEW
+    if "*" in raw:
+        res |= NO_NEW
+    if "down" in raw:
+        res |= DOWN
+    if "$" in raw:
+        res |= MAINTENANCE
+    return res
 
 def flag_states(flag, states):
     return [(state, flag) for state in states.split()]
-
-state_map = dict(
-    [("unknown", UNKNOWN), ("reserved", RESERVED), ("maint", MAINTENANCE)] +
-    flag_states(0, "allocated allocated+ completing idle mixed") +
-    flag_states(NO_NEW, "draining failing future perfctrs") +
-    flag_states(DOWN, "down drained error fail power_down power_up"))
 
 def make_bar(meta, all_mem_used):
     usage = UNKNOWN_USE
     base = BASE
     in_use = 0
     cores_loaded = 0
-    state_flags = parse_state(meta.state.lower())
+    state_flags = parse_state(meta.state)
     if state_flags & NO_NEW:
         base = " " # if not accepting jobs, the cores aren't marked available
     if meta.cores == 0 or state_flags & UNKNOWN:
@@ -176,6 +173,21 @@ def parse_squeue_mem(s):
         s = s[:-1]
     return scale * float(s)
 
+def parse_tres(tres):
+    cpu = 0
+    mem = 0.0
+    gpu = 0
+    m = re.search("cpu=([^,]+)", tres)
+    if m:
+        cpu = int(m.group(1))
+    m = re.search("mem=([^,]+)", tres)
+    if m:
+        mem = parse_squeue_mem(m.group(1))
+    m = re.search("gres/gpu=(\d+)", tres)
+    if m:
+        gpu = int(m.group(1))
+    return cpu, mem, gpu
+
 def stripped_lines_from_cmd(cmd):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     for line in p.stdout:
@@ -198,7 +210,7 @@ def make_header(partition, max_walltime, ncores, nmem, ngpus, field_width, nfiel
     if ngpus != 0:
         text_long = text_long + " & %d GPUs" % ngpus
         text_short = text_short + " / %dGPU" % ngpus
-    if max_walltime != "infinite":
+    if max_walltime != "UNLIMITED":
         text_long = text_long + " & max time %s" % (max_walltime)
         text_short = text_short + " / %s" % (max_walltime)
     if GNODES_SHORT_HEADER:
@@ -232,20 +244,27 @@ def main(partitions, groups, accounts, search_pattern):
         for member in group.gr_mem:
             user_groups.setdefault(member, set()).add(group.gr_name)
 
-    for line in stripped_lines_from_cmd(NODE_CMD):
-        node,cpuinfo,mem,load,state,partition,max_walltime,gres = line.split(';')
-
-        gpus = 0
-        m = re.match("gpu:(\d+)", gres)
-        if m:
-            gpus = int(m.group(1))
-
-        in_use,idle,unavailable,cores = map(int, cpuinfo.split('/'))
-        if partition.endswith('*'):
-            partition = partition[:-1]
-            default_partition = partition
+    for line in stripped_lines_from_cmd(PARTITION_CMD):
+        partition = re.search("PartitionName=([^ ]+)", line).group(1)
+        max_walltime = re.search("MaxTime=([^ ]+)", line).group(1)
         partition_walltimes[partition] = max_walltime
-        node_meta[(node,partition)] = NodeMeta(load, in_use, unavailable, cores, int(mem)*1024*1024, gpus, state)
+        if re.search("Default=YES", line):
+            default_partition = partition
+
+    for line in stripped_lines_from_cmd(NODE_CMD):
+        node = re.search("NodeName=([^ ]+)", line).group(1)
+        state = re.search("State=([^ ]+)", line).group(1)
+        tres_avail = re.search("CfgTRES=([^ ]*)", line).group(1)
+        tres_alloc = re.search("AllocTRES=([^ ]*)", line).group(1)
+        node_partitions = re.search("Partitions=([^ ]+)", line).group(1)
+        cpu_load = re.search("CPULoad=([^ ]+)", line).group(1)
+
+        avail_cores, avail_mem, avail_gpus = parse_tres(tres_avail)
+        alloc_cores, alloc_mem, alloc_gpus = parse_tres(tres_alloc)
+        cpu_load = (cpu_load != "N/A") and float(cpu_load) or 0.0
+
+        for partition in node_partitions.split(","):
+            node_meta[(node,partition)] = NodeMeta(cpu_load, alloc_cores, avail_cores, avail_mem, avail_gpus, state)
         node_job_meta[node] = JobMeta(set(), set(), list(), set(), set())
 
     empty_set = set()
