@@ -28,7 +28,7 @@ Output:
          _ | Allocated core
          O | Loaded core
          ! | Load is significantly higher than allocated core count
-         ? | Load is unknow
+         ? | Load is unknown
 
     Search terms are regular expressions that match on node name and
     users/ids of running jobs. If anything matches the node will be
@@ -77,16 +77,18 @@ except:
         else:
             yield p
 
-NodeMeta = namedtuple('NodeMeta', 'load alloc_cores total_cores alloc_mem total_mem gpus state')
+NodeMeta = namedtuple('NodeMeta', 'load alloc_cores total_cores alloc_mem total_mem alloc_gpus total_gpus state')
 JobMeta  = namedtuple('JobMeta',  'job_ids job_usernames job_accounts job_groups')
 Group    = namedtuple('Group',    'partition total_cores total_mem gpus')
 
 # Symbols:
-BASE        = '.'
-ALLOCATED   = '_'
-USE         = 'O'
-OVERUSE     = '!'
-UNKNOWN_USE = '?'
+CPU_IDLE    = '.'
+CPU_ALLOC   = '_'
+CPU_USE     = 'O'
+CPU_OVERUSE = '!'
+CPU_UNKNOWN = '?'
+GPU_ALLOC   = 'G'
+GPU_IDLE    = '*'
 
 PARTITION_CMD = ['scontrol', 'show', 'partition', '-a', '--oneliner']
 NODE_CMD = ['scontrol', 'show', 'node', '-a', '--oneliner']
@@ -132,22 +134,24 @@ def parse_state(raw):
 def flag_states(flag, states):
     return [(state, flag) for state in states.split()]
 
-def make_bar(meta, all_mem_used):
-    usage = UNKNOWN_USE
-    base = BASE
+def make_cpu_bar(meta):
+    mem_available = meta.total_mem - meta.alloc_mem
+    all_mem_used = (mem_available == 0)
+    usage = CPU_UNKNOWN
+    base = CPU_IDLE
     in_use = 0
     cores_loaded = 0
     state_flags = parse_state(meta.state)
     if state_flags & NO_NEW:
         base = " " # if not accepting jobs, the cores aren't marked available
     if meta.total_cores == 0 or state_flags & UNKNOWN:
-        return 'UNKNOWN'
+        return 'UNKNOWN', True
     elif state_flags & MAINTENANCE:
-        return 'MAINTENANCE'
+        return 'MAINTENANCE', True
     elif state_flags & RESERVED:
-        return 'RESERVED'
+        return 'RESERVED', True
     elif (state_flags & DOWN) or (meta.alloc_cores == 0 and state_flags & NO_NEW):
-        return 'DOWN'
+        return 'DOWN', True
     elif meta.alloc_cores > 0:
         in_use = all_mem_used and meta.total_cores or meta.alloc_cores
         load = meta.load
@@ -156,15 +160,15 @@ def make_bar(meta, all_mem_used):
             Lf = float(Ls)
             cores_loaded = min(in_use, int(floor(Lf + 0.5)))
             if Lf > in_use*1.5:
-                usage = OVERUSE
+                usage = CPU_OVERUSE
             else:
-                usage = USE
+                usage = CPU_USE
     A, B, C = (meta.total_cores - in_use, in_use - cores_loaded, cores_loaded)
-    return base*max(0, A) + ALLOCATED*max(0, B) + usage*max(0, C)
+    return base*max(0, A) + CPU_ALLOC*max(0, B) + usage*max(0, C), False
 
 def group_id(x):
     # partition, number of cores, amount of memory, number of gpus
-    return Group(x[0][1], x[1].total_cores, x[1].total_mem, x[1].gpus)
+    return Group(x[0][1], x[1].total_cores, x[1].total_mem, x[1].total_gpus)
 
 def parse_squeue_mem(s):
     m = {'K':10,'M':20,'G':30,'T':40,'P':50,'E':60}
@@ -264,7 +268,7 @@ def main(partitions, groups, accounts, search_pattern):
         cpu_load = (cpu_load != "N/A") and float(cpu_load) or 0.0
 
         for partition in node_partitions.split(","):
-            node_meta[(node,partition)] = NodeMeta(cpu_load, alloc_cores, total_cores, alloc_mem, total_mem, total_gpus, state)
+            node_meta[(node,partition)] = NodeMeta(cpu_load, alloc_cores, total_cores, alloc_mem, total_mem, alloc_gpus, total_gpus, state)
         node_job_meta[node] = JobMeta(set(), set(), set(), set())
 
     empty_set = set()
@@ -301,10 +305,16 @@ def main(partitions, groups, accounts, search_pattern):
             highlight = highlight or len(accounts & job_meta.job_accounts) > 0
             highlight = highlight or len(groups & job_meta.job_groups) > 0
             mem_available = meta.total_mem - meta.alloc_mem
-            bar = make_bar(meta, mem_available == 0)
+            bar, is_unavailable = make_cpu_bar(meta)
             if meta.alloc_cores == meta.total_cores:
                 mem_available = 0
-            info = "%-6s %4.0fG  %s" % (node, mem_available / (2**30), bar.center(meta.total_cores))
+            if meta.total_gpus > 0 and is_unavailable:
+                gpu_usage = " " + " "*meta.total_gpus
+            elif meta.total_gpus > 0:
+                gpu_usage = " " + GPU_IDLE*(meta.total_gpus - meta.alloc_gpus) + GPU_ALLOC*meta.alloc_gpus
+            else:
+                gpu_usage = ""
+            info = "%-6s %4.0fG  %s%s" % (node, mem_available / (2**30), bar.center(meta.total_cores), gpu_usage)
             info_fields.append(info)
             name_patterns.append(highlight and NODENAME_MATCHED or NODENAME_UNMATCHED)
         max_field_width = max(len(i) for i in info_fields)
