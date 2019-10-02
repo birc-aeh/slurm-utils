@@ -2,11 +2,6 @@
 #
 # gnodes - shows a graphical overview of a Slurm cluster
 #
-# Inspired by a similar program done by Niels Carl Hansen for a Torque
-# cluster.  The original used a static template which gives you more
-# organized output but I wanted less manual work, adaptive width, python
-# rather than perl and of course Slurm support.
-#
 # Copyright 2015 Anders Halager <aeh@birc.au.dk>
 #
 # LICENSE: MIT
@@ -22,13 +17,20 @@ Output:
     The meaning of each type of symbol is described in the following
     table:
 
-
     Symbol | Meaning
          . | Available core
          _ | Allocated core
          O | Loaded core
          ! | Load is significantly higher than allocated core count
          ? | Load is unknown
+
+    If a node contains GPUs they will get their own symbols after the symbols
+    for the cores.
+    The symbols for GPUs are as follows:
+
+    Symbol | Meaning
+         * | Unallocated GPU
+         G | Allocated GPU
 
     Search terms are regular expressions that match on node name and
     users/ids of running jobs. If anything matches the node will be
@@ -167,8 +169,8 @@ def make_cpu_bar(meta):
     return base*max(0, A) + CPU_ALLOC*max(0, B) + usage*max(0, C), False
 
 def group_id(x):
-    # partition, number of cores, amount of memory, number of gpus
-    return Group(x[0][1], x[1].total_cores, x[1].total_mem, x[1].total_gpus)
+    ((node, partition), meta) = x
+    return Group(partition, meta.total_cores, meta.total_mem, meta.total_gpus)
 
 def parse_squeue_mem(s):
     m = {'K':10,'M':20,'G':30,'T':40,'P':50,'E':60}
@@ -247,7 +249,7 @@ def main(partitions, groups, accounts, search_pattern):
         partition = re.search("PartitionName=([^ ]+)", line).group(1)
         max_walltime = re.search("MaxTime=([^ ]+)", line).group(1)
         partition_walltimes[partition] = max_walltime
-        if re.search("Default=YES", line):
+        if "Default=YES" in line:
             default_partition = partition
 
     for line in stripped_lines_from_cmd(NODE_CMD):
@@ -271,10 +273,7 @@ def main(partitions, groups, accounts, search_pattern):
     for line in stripped_lines_from_cmd(JOB_CMD):
         jobid,state,user,mem,nodes,partition,account = line.split(';')
         mem = parse_squeue_mem(mem)
-        if state != 'R':
-            continue
-        ex_nodes = list(expand_hostlist(nodes))
-        for n in ex_nodes:
+        for n in expand_hostlist(nodes):
             node_job_meta[n].job_ids.add(jobid)
             node_job_meta[n].job_usernames.add(user)
             node_job_meta[n].job_accounts.add(account)
@@ -284,7 +283,6 @@ def main(partitions, groups, accounts, search_pattern):
     screen_width = int(screen_width) - 1
 
     for k,g in groupby(sorted(node_meta.iteritems(), key=group_id), key=group_id):
-
         if len(partitions) > 0:
             if k.partition not in partitions:
                 continue
