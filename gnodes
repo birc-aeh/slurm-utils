@@ -178,18 +178,13 @@ def parse_squeue_mem(s):
     return scale * float(s)
 
 def parse_tres(tres):
-    cpu = 0
-    mem = 0.0
-    gpu = 0
-    m = re.search("cpu=([^,]+)", tres)
-    if m:
-        cpu = int(m.group(1))
-    m = re.search("mem=([^,]+)", tres)
-    if m:
-        mem = parse_squeue_mem(m.group(1))
-    m = re.search("gres/gpu=(\d+)", tres)
-    if m:
-        gpu = int(m.group(1))
+    def get(pattern, default, transform):
+        m = re.search(pattern + "=([^, ]+)", tres)
+        return m and transform(m.group(1)) or default
+
+    cpu = get("cpu",      0, int)
+    mem = get("mem",      0, parse_squeue_mem)
+    gpu = get("gres/gpu", 0, int)
     return cpu, mem, gpu
 
 def stripped_lines_from_cmd(cmd):
