@@ -77,8 +77,8 @@ except:
         else:
             yield p
 
-NodeMeta = namedtuple('NodeMeta', 'load in_use cores mem gpus state')
-JobMeta  = namedtuple('JobMeta',  'job_ids job_usernames job_mem_usages job_accounts job_groups')
+NodeMeta = namedtuple('NodeMeta', 'load in_use cores alloc_mem total_mem gpus state')
+JobMeta  = namedtuple('JobMeta',  'job_ids job_usernames job_accounts job_groups')
 Group    = namedtuple('Group',    'partition cores mem gpus')
 
 # Symbols:
@@ -164,7 +164,7 @@ def make_bar(meta, all_mem_used):
 
 def group_id(x):
     # partition, number of cores, amount of memory, number of gpus
-    return Group(x[0][1], x[1].cores, x[1].mem, x[1].gpus)
+    return Group(x[0][1], x[1].cores, x[1].total_mem, x[1].gpus)
 
 def parse_squeue_mem(s):
     m = {'K':10,'M':20,'G':30,'T':40,'P':50,'E':60}
@@ -254,18 +254,18 @@ def main(partitions, groups, accounts, search_pattern):
     for line in stripped_lines_from_cmd(NODE_CMD):
         node = re.search("NodeName=([^ ]+)", line).group(1)
         state = re.search("State=([^ ]+)", line).group(1)
-        tres_avail = re.search("CfgTRES=([^ ]*)", line).group(1)
+        tres_total = re.search("CfgTRES=([^ ]*)", line).group(1)
         tres_alloc = re.search("AllocTRES=([^ ]*)", line).group(1)
         node_partitions = re.search("Partitions=([^ ]+)", line).group(1)
         cpu_load = re.search("CPULoad=([^ ]+)", line).group(1)
 
-        avail_cores, avail_mem, avail_gpus = parse_tres(tres_avail)
+        total_cores, total_mem, total_gpus = parse_tres(tres_total)
         alloc_cores, alloc_mem, alloc_gpus = parse_tres(tres_alloc)
         cpu_load = (cpu_load != "N/A") and float(cpu_load) or 0.0
 
         for partition in node_partitions.split(","):
-            node_meta[(node,partition)] = NodeMeta(cpu_load, alloc_cores, avail_cores, avail_mem, avail_gpus, state)
-        node_job_meta[node] = JobMeta(set(), set(), list(), set(), set())
+            node_meta[(node,partition)] = NodeMeta(cpu_load, alloc_cores, total_cores, alloc_mem, total_mem, total_gpus, state)
+        node_job_meta[node] = JobMeta(set(), set(), set(), set())
 
     empty_set = set()
     result = []
@@ -278,7 +278,6 @@ def main(partitions, groups, accounts, search_pattern):
         for n in ex_nodes:
             node_job_meta[n].job_ids.add(jobid)
             node_job_meta[n].job_usernames.add(user)
-            node_job_meta[n].job_mem_usages.append(mem)
             node_job_meta[n].job_accounts.add(account)
             node_job_meta[n].job_groups.update(user_groups.get(user, empty_set))
 
@@ -301,7 +300,7 @@ def main(partitions, groups, accounts, search_pattern):
             highlight = any(search_pattern.search(x) != None for x in search_target)
             highlight = highlight or len(accounts & job_meta.job_accounts) > 0
             highlight = highlight or len(groups & job_meta.job_groups) > 0
-            mem_available = max(0, meta.mem - sum(job_meta.job_mem_usages))
+            mem_available = meta.total_mem - meta.alloc_mem
             bar = make_bar(meta, mem_available == 0)
             if meta.in_use == meta.cores:
                 mem_available = 0
