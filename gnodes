@@ -77,9 +77,9 @@ except:
         else:
             yield p
 
-NodeMeta = namedtuple('NodeMeta', 'load in_use cores alloc_mem total_mem gpus state')
+NodeMeta = namedtuple('NodeMeta', 'load alloc_cores total_cores alloc_mem total_mem gpus state')
 JobMeta  = namedtuple('JobMeta',  'job_ids job_usernames job_accounts job_groups')
-Group    = namedtuple('Group',    'partition cores mem gpus')
+Group    = namedtuple('Group',    'partition total_cores total_mem gpus')
 
 # Symbols:
 BASE        = '.'
@@ -140,16 +140,16 @@ def make_bar(meta, all_mem_used):
     state_flags = parse_state(meta.state)
     if state_flags & NO_NEW:
         base = " " # if not accepting jobs, the cores aren't marked available
-    if meta.cores == 0 or state_flags & UNKNOWN:
+    if meta.total_cores == 0 or state_flags & UNKNOWN:
         return 'UNKNOWN'
     elif state_flags & MAINTENANCE:
         return 'MAINTENANCE'
     elif state_flags & RESERVED:
         return 'RESERVED'
-    elif (state_flags & DOWN) or (meta.in_use == 0 and state_flags & NO_NEW):
+    elif (state_flags & DOWN) or (meta.alloc_cores == 0 and state_flags & NO_NEW):
         return 'DOWN'
-    elif meta.in_use > 0:
-        in_use = all_mem_used and meta.cores or meta.in_use
+    elif meta.alloc_cores > 0:
+        in_use = all_mem_used and meta.total_cores or meta.alloc_cores
         load = meta.load
         Ls = meta.load
         if is_float(Ls):
@@ -159,12 +159,12 @@ def make_bar(meta, all_mem_used):
                 usage = OVERUSE
             else:
                 usage = USE
-    A, B, C = (meta.cores - in_use, in_use - cores_loaded, cores_loaded)
+    A, B, C = (meta.total_cores - in_use, in_use - cores_loaded, cores_loaded)
     return base*max(0, A) + ALLOCATED*max(0, B) + usage*max(0, C)
 
 def group_id(x):
     # partition, number of cores, amount of memory, number of gpus
-    return Group(x[0][1], x[1].cores, x[1].total_mem, x[1].gpus)
+    return Group(x[0][1], x[1].total_cores, x[1].total_mem, x[1].gpus)
 
 def parse_squeue_mem(s):
     m = {'K':10,'M':20,'G':30,'T':40,'P':50,'E':60}
@@ -302,9 +302,9 @@ def main(partitions, groups, accounts, search_pattern):
             highlight = highlight or len(groups & job_meta.job_groups) > 0
             mem_available = meta.total_mem - meta.alloc_mem
             bar = make_bar(meta, mem_available == 0)
-            if meta.in_use == meta.cores:
+            if meta.alloc_cores == meta.total_cores:
                 mem_available = 0
-            info = "%-6s %4.0fG  %s" % (node, mem_available / (2**30), bar.center(meta.cores))
+            info = "%-6s %4.0fG  %s" % (node, mem_available / (2**30), bar.center(meta.total_cores))
             info_fields.append(info)
             name_patterns.append(highlight and NODENAME_MATCHED or NODENAME_UNMATCHED)
         max_field_width = max(len(i) for i in info_fields)
@@ -316,7 +316,7 @@ def main(partitions, groups, accounts, search_pattern):
             name_patterns.extend([NODENAME_UNMATCHED]*dummy_fields)
         rows = len(info_fields) / fields_per_row
         print make_header(
-                k.partition, partition_walltimes[k.partition], k.cores, k.mem, k.gpus,
+                k.partition, partition_walltimes[k.partition], k.total_cores, k.total_mem, k.gpus,
                 max_field_width, fields_per_row, default_partition)
         for r in xrange(0, rows):
             print "| %s |" % " | ".join(pat % s for pat,s in zip(name_patterns, info_fields)[r::rows])
