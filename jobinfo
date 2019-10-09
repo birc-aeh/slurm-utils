@@ -153,7 +153,7 @@ FIELDS = [
         Field("Partition",           str,        keep_first,   show,  False, f_str,     "Partition"),
         Field("NodeList",            str,        keep_first,   show,  False, f_str,     "Nodes"),
         Field("ncpus",               int,        max,          show,  False, f_str,     "Cores"),
-        Field("AllocTRES",           gpu_str,    max,          show,  False, f_str,     "GPUs"),
+        Field("ReqTRES",             gpu_str,    max,          show,  False, f_str,     "GPUs"),
         Field("State",               str_set,    set.union,    show,  False, f_state,   "State"),
         Field("Submit",              str,        keep_first,   show,  False, f_str,     "Submit"),
         Field("start",               date_str,   min,          show,  False, f_date,    "Start"),
