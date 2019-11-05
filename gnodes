@@ -252,13 +252,17 @@ def main(partitions, groups, accounts, search_pattern):
         if "Default=YES" in line:
             default_partition = partition
 
+    def get_field(pattern, line, default=""):
+        m = re.search(pattern + "=([^ ]*)", line)
+        return m and m.group(1) or default
+
     for line in stripped_lines_from_cmd(NODE_CMD):
-        node = re.search("NodeName=([^ ]+)", line).group(1)
-        state = re.search("State=([^ ]+)", line).group(1)
-        tres_total = re.search("CfgTRES=([^ ]*)", line).group(1)
-        tres_alloc = re.search("AllocTRES=([^ ]*)", line).group(1)
-        node_partitions = re.search("Partitions=([^ ]+)", line).group(1)
-        cpu_load = re.search("CPULoad=([^ ]+)", line).group(1)
+        node = get_field("NodeName", line)
+        state = get_field("State", line)
+        tres_total = get_field("CfgTRES", line)
+        tres_alloc = get_field("AllocTRES", line)
+        node_partitions = get_field("Partitions", line)
+        cpu_load = get_field("CPULoad", line, "N/A")
 
         total_cores, total_mem, total_gpus = parse_tres(tres_total)
         alloc_cores, alloc_mem, alloc_gpus = parse_tres(tres_alloc)
