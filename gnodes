@@ -94,7 +94,7 @@ GPU_IDLE    = '*'
 
 PARTITION_CMD = ['scontrol', 'show', 'partition', '-a', '--oneliner']
 NODE_CMD = ['scontrol', 'show', 'node', '-a', '--oneliner']
-JOB_CMD = ['squeue', "--format=%i;%t;%u;%m;%N;%P;%a", '--states=R', '--noheader', '-a']
+JOB_CMD = ['squeue', "--format=%i;%t;%u;%N;%P;%a", '--states=R', '--noheader', '-a']
 
 NODENAME_MATCHED   = "\033[7m%s\033[0m"
 NODENAME_UNMATCHED = "%s"
@@ -278,8 +278,7 @@ def main(partitions, groups, accounts, search_pattern):
     empty_set = set()
     result = []
     for line in stripped_lines_from_cmd(JOB_CMD):
-        jobid,state,user,mem,nodes,partition,account = line.split(';')
-        mem = parse_squeue_mem(mem)
+        jobid,state,user,nodes,partition,account = line.split(';')
         for n in expand_hostlist(nodes):
             node_job_meta[n].job_ids.add(jobid)
             node_job_meta[n].job_usernames.add(user)
