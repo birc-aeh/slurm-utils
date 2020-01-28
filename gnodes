@@ -129,7 +129,7 @@ def parse_state(raw):
         res |= NO_NEW
     if "down" in raw:
         res |= DOWN
-    if "$" in raw:
+    if "maint" in raw or "$" in raw:
         res |= MAINTENANCE
     return res
 
