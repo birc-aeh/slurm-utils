@@ -150,6 +150,7 @@ Field = NT('Field', 'name ctor combinator shown prefer_sstat formatter desc')
 FIELDS = [
         Field("JobName",             str,        keep_first,   show,  False, f_str,     "Name"),
         Field("User",                str,        keep_first,   show,  False, f_str,     "User"),
+        Field("Account",             str,        keep_first,   show,  False, f_str,     "Account"),
         Field("Partition",           str,        keep_first,   show,  False, f_str,     "Partition"),
         Field("NodeList",            str,        keep_first,   show,  False, f_str,     "Nodes"),
         Field("ncpus",               int,        max,          show,  False, f_str,     "Cores"),
