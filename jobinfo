@@ -119,7 +119,7 @@ def f_time(x, meta):
     else:
         dd = ""
     res = "%s%02i:%02i:%02i" % (dd, hh, mm, ss)
-    if res.strip() == "00:00:00":
+    if res.strip() == "00:00:00" and meta.start.lower() == "unknown":
         return "--"
     return res.rjust(max_time_len)
 
