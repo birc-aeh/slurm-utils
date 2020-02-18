@@ -111,20 +111,17 @@ def f_mem(x, meta):
         return x
 
 def f_time(x, meta):
-    all_times = [meta.timelimit, meta.elapsed, meta.TotalCPU, '-']
-    days_len = max(len(y.split('-')[0]) for y in all_times if '-' in y)
+    all_times = [meta.timelimit, meta.elapsed, meta.TotalCPU, meta.reserved]
+    max_time_len = max(len(y) for y in all_times)
     ss, mm, hh, dd = parse_time(x)
-    if days_len == 0:
-        dd = ""
+    if dd > 0:
+        dd = ("%i-" % dd)
     else:
-        if dd > 0:
-            dd = ("%i-" % dd).rjust(days_len)
-        else:
-            dd = " "*(days_len + 1)
+        dd = ""
     res = "%s%02i:%02i:%02i" % (dd, hh, mm, ss)
     if res.strip() == "00:00:00":
         return "--"
-    return res
+    return res.rjust(max_time_len)
 
 def f_str(x, meta):
     return str(x)
@@ -159,6 +156,7 @@ FIELDS = [
         Field("Submit",              str,        keep_first,   show,  False, f_str,     "Submit"),
         Field("start",               date_str,   min,          show,  False, f_date,    "Start"),
         Field("end",                 str,        time_max,     show,  False, f_date,    "End"),
+        Field("reserved",            date_str,   min,          show,  False, f_time,    "Waited"),
         Field("timelimit",           str,        time_max,     show,  False, f_time,    "Reserved walltime"),
         Field("elapsed",             str,        time_max,     show,  False, f_time,    "Used walltime"),
         Field("TotalCPU",            str,        max,          show,  False, f_time,    "Used CPU time"),
