@@ -40,6 +40,9 @@ def whoami():
     import pwd
     return pwd.getpwuid(os.getuid()).pw_name
 
+def without_fraction(s):
+    return "." in s and s[:s.rfind(".")] or s
+
 # Constructors / parsers:
 def str_set(x=None):
     if x in [None, '']:
@@ -112,7 +115,7 @@ def f_mem(x, meta):
 
 def f_time(x, meta):
     all_times = [meta.timelimit, meta.elapsed, meta.TotalCPU, meta.reserved]
-    max_time_len = max(len(y) for y in all_times)
+    max_time_len = max(len(without_fraction(y)) for y in all_times)
     ss, mm, hh, dd = parse_time(x)
     if dd > 0:
         dd = ("%i-" % dd)
