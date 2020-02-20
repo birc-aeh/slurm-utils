@@ -156,6 +156,7 @@ FIELDS = [
         Field("ncpus",               int,        max,          show,  False, f_str,     "Cores"),
         Field("ReqTRES",             gpu_str,    max,          show,  False, f_str,     "GPUs"),
         Field("State",               str_set,    set.union,    show,  False, f_state,   "State"),
+        Field("ExitCode",            str,        keep_first,   show,  False, f_str,     "ExitCode"),
         Field("Submit",              str,        keep_first,   show,  False, f_str,     "Submit"),
         Field("start",               date_str,   min,          show,  False, f_date,    "Start"),
         Field("end",                 str,        time_max,     show,  False, f_date,    "End"),
