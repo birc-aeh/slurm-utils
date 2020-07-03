@@ -7,6 +7,15 @@ If the `hostlist` module is available to python `gnodes` will use it to expand
 lists of nodes, otherwise it will use an included function with some
 limitations.
 
+# installation
+The two scripts are self-contained, so installation is done by downloading the
+latest version and then marking the two files as executable.
+
+    wget https://raw.githubusercontent.com/birc-aeh/slurm-utils/master/gnodes
+    wget https://raw.githubusercontent.com/birc-aeh/slurm-utils/master/jobinfo
+    chmod +x gnodes jobinfo
+    mv gnodes jobinfo ~/.local/bin/ # or another folder in your $PATH
+
 # gnodes
 The `gnodes` script gives a visual representation of your cluster.
 It shows you available memory and allocated/loaded cores for every every node
