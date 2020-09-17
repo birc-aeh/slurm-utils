@@ -233,12 +233,19 @@ def make_footer(field_width, nfields):
 def clamp(n, lo, hi):
     return max(lo, min(hi, n))
 
+
+def get_field(pattern, line, default=""):
+    m = re.search(pattern + "=([^ ]*)", line)
+    return m and m.group(1) or default
+
+
 def main(partitions, groups, accounts, search_pattern):
     use_colors = hasattr(sys.stdout, 'isatty') and sys.stdout.isatty()
     node_meta = {}
     node_job_meta = {}
     default_partition = ""
     partition_walltimes = dict()
+    partition_max_cpus = dict()
 
     user_groups = dict()
     for group in grp.getgrall():
@@ -246,15 +253,13 @@ def main(partitions, groups, accounts, search_pattern):
             user_groups.setdefault(member, set()).add(group.gr_name)
 
     for line in stripped_lines_from_cmd(PARTITION_CMD):
-        partition = re.search("PartitionName=([^ ]+)", line).group(1)
-        max_walltime = re.search("MaxTime=([^ ]+)", line).group(1)
-        partition_walltimes[partition] = max_walltime
-        if "Default=YES" in line:
+        partition = get_field("PartitionName", line)
+        partition_walltimes[partition] = get_field("MaxTime", line)
+        max_cpus = get_field("MaxCPUsPerNode", line, "UNLIMITED")
+        max_cpus = int(max_cpus) if max_cpus != "UNLIMITED" else 1000000
+        partition_max_cpus[partition] = max_cpus
+        if get_field("Default", line) == "YES":
             default_partition = partition
-
-    def get_field(pattern, line, default=""):
-        m = re.search(pattern + "=([^ ]*)", line)
-        return m and m.group(1) or default
 
     for line in stripped_lines_from_cmd(NODE_CMD):
         node = get_field("NodeName", line)
@@ -272,6 +277,7 @@ def main(partitions, groups, accounts, search_pattern):
             continue
 
         for partition in node_partitions.split(","):
+            total_cores = min(partition_max_cpus[partition], total_cores)
             node_meta[(node,partition)] = NodeMeta(cpu_load, alloc_cores, total_cores, alloc_mem, total_mem, alloc_gpus, total_gpus, state)
         node_job_meta[node] = JobMeta(set(), set(), set(), set())
 
