@@ -281,15 +281,13 @@ def main(partitions, groups, accounts, search_pattern):
             node_meta[(node,partition)] = NodeMeta(cpu_load, alloc_cores, total_cores, alloc_mem, total_mem, alloc_gpus, total_gpus, state)
         node_job_meta[node] = JobMeta(set(), set(), set(), set())
 
-    empty_set = set()
-    result = []
     for line in stripped_lines_from_cmd(JOB_CMD):
         jobid,state,user,nodes,partition,account = line.split(';')
         for n in expand_hostlist(nodes):
             node_job_meta[n].job_ids.add(jobid)
             node_job_meta[n].job_usernames.add(user)
             node_job_meta[n].job_accounts.add(account)
-            node_job_meta[n].job_groups.update(user_groups.get(user, empty_set))
+            node_job_meta[n].job_groups.update(user_groups.get(user, set()))
 
     screen_width = get_output_width(80)
     screen_width = int(screen_width) - 1
@@ -306,9 +304,9 @@ def main(partitions, groups, accounts, search_pattern):
         for (node,partition),meta in sorted(g):
             job_meta = node_job_meta[node]
             search_target = job_meta.job_ids | job_meta.job_usernames | job_meta.job_accounts | job_meta.job_groups | set([node])
-            highlight = any(search_pattern.search(x) != None for x in search_target)
-            highlight = highlight or len(accounts & job_meta.job_accounts) > 0
-            highlight = highlight or len(groups & job_meta.job_groups) > 0
+            highlight = any(search_pattern.search(x) != None for x in search_target) \
+                    or len(accounts & job_meta.job_accounts) > 0 \
+                    or len(groups & job_meta.job_groups) > 0
             mem_available = meta.total_mem - meta.alloc_mem
             bar, is_unavailable = make_cpu_bar(meta)
             if meta.alloc_cores == meta.total_cores:
