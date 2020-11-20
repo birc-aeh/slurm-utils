@@ -155,7 +155,7 @@ def make_cpu_bar(meta):
     elif (state_flags & DOWN) or (meta.alloc_cores == 0 and state_flags & NO_NEW):
         return 'DOWN', True
     elif meta.alloc_cores > 0:
-        in_use = all_mem_used and meta.total_cores or meta.alloc_cores
+        in_use = meta.total_cores if all_mem_used else meta.alloc_cores
         load = meta.load
         Ls = meta.load
         if is_float(Ls):
@@ -182,7 +182,7 @@ def parse_squeue_mem(s):
 def parse_tres(tres):
     def get(pattern, default, transform):
         m = re.search(pattern + "=([^, ]+)", tres)
-        return m and transform(m.group(1)) or default
+        return transform(m.group(1)) if m else default
 
     cpu = get("cpu",      0, int)
     mem = get("mem",      0, parse_squeue_mem)
@@ -236,7 +236,7 @@ def clamp(n, lo, hi):
 
 def get_field(pattern, line, default=""):
     m = re.search(pattern + "=([^ ]*)", line)
-    return m and m.group(1) or default
+    return m.group(1) if m else default
 
 
 def main(partitions, groups, accounts, search_pattern):
@@ -271,7 +271,7 @@ def main(partitions, groups, accounts, search_pattern):
 
         total_cores, total_mem, total_gpus = parse_tres(tres_total)
         alloc_cores, alloc_mem, alloc_gpus = parse_tres(tres_alloc)
-        cpu_load = (cpu_load != "N/A") and float(cpu_load) or 0.0
+        cpu_load = 0.0 if cpu_load == "N/A" else float(cpu_load)
 
         if node_partitions == '':
             continue
@@ -321,7 +321,7 @@ def main(partitions, groups, accounts, search_pattern):
                 gpu_usage = ""
             info = "%-6s %4.0fG  %s%s" % (node, mem_available / (2**30), bar.center(meta.total_cores), gpu_usage)
             info_fields.append(info)
-            name_patterns.append(highlight and NODENAME_MATCHED or NODENAME_UNMATCHED)
+            name_patterns.append(NODENAME_MATCHED if highlight else NODENAME_UNMATCHED)
         max_field_width = max(len(i) for i in info_fields)
         fields_per_row = clamp(int(screen_width / (max_field_width + 3)), 1, len(info_fields))
         fields_in_last_row = len(info_fields) % fields_per_row
