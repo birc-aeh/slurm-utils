@@ -123,11 +123,13 @@ MAINTENANCE = 16 # Node is reserved specifically for maintenance
 def parse_state(raw):
     res = 0
     raw = raw.lower()
+    if "unknown" in raw:
+        res |= UNKNOWN
     if "drain" in raw or "down" in raw:
         res |= NO_NEW
     if "*" in raw:
         res |= NO_NEW
-    if "down" in raw:
+    if "down" in raw or "not_responding" in raw:
         res |= DOWN
     if "maint" in raw or "$" in raw:
         res |= MAINTENANCE
@@ -146,14 +148,14 @@ def make_cpu_bar(meta):
     state_flags = parse_state(meta.state)
     if state_flags & NO_NEW:
         base = " " # if not accepting jobs, the cores aren't marked available
-    if meta.total_cores == 0 or state_flags & UNKNOWN:
-        return 'UNKNOWN', True
-    elif state_flags & MAINTENANCE:
+    if state_flags & MAINTENANCE:
         return 'MAINTENANCE', True
     elif state_flags & RESERVED:
         return 'RESERVED', True
     elif (state_flags & DOWN) or (meta.alloc_cores == 0 and state_flags & NO_NEW):
         return 'DOWN', True
+    elif meta.total_cores == 0 or state_flags & UNKNOWN:
+        return 'UNKNOWN', True
     elif meta.alloc_cores > 0:
         in_use = meta.total_cores if all_mem_used else meta.alloc_cores
         load = meta.load
