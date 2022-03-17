@@ -119,6 +119,7 @@ NO_NEW      =  2 # Node is not accepting new jobs (but might still have some)
 DOWN        =  4 # Node is down
 RESERVED    =  8 # Node is reserved
 MAINTENANCE = 16 # Node is reserved specifically for maintenance
+PLANNED     = 32 # Node is planned for use by a multinode job
 
 def parse_state(raw):
     res = 0
@@ -133,6 +134,8 @@ def parse_state(raw):
         res |= DOWN
     if "maint" in raw or "$" in raw:
         res |= MAINTENANCE
+    if "planned" in raw or "-" in raw:
+        res |= PLANNED
     return res
 
 def flag_states(flag, states):
@@ -150,6 +153,8 @@ def make_cpu_bar(meta):
         base = " " # if not accepting jobs, the cores aren't marked available
     if state_flags & MAINTENANCE:
         return 'MAINTENANCE', True
+    elif state_flags & PLANNED:
+        return 'PLANNED', True
     elif state_flags & RESERVED:
         return 'RESERVED', True
     elif (state_flags & DOWN) or (meta.alloc_cores == 0 and state_flags & NO_NEW):
