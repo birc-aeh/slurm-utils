@@ -271,7 +271,7 @@ if __name__ == "__main__":
         usage(sys.stderr)
         sys.exit(1)
     jobid = sys.argv[1]
-    if len(set(jobid) - set("0123456789_.")) > 0:
+    if len(set(jobid) - set("0123456789_.+")) > 0:
         print >>sys.stderr, "The argument does not look like a valid job id"
         usage(sys.stderr)
         sys.exit(1)
