@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 #
 # gnodes - shows a graphical overview of a Slurm cluster
 #
@@ -74,7 +74,7 @@ except:
                     yield prefix + sub_r
                 else:
                     lo,hi = sub_r.split("-", 1)
-                    for i in xrange(int(lo), int(hi)+1):
+                    for i in range(int(lo), int(hi)+1):
                         yield prefix + str(i).zfill(len(lo))
         else:
             yield p
@@ -199,7 +199,7 @@ def parse_tres(tres):
 def stripped_lines_from_cmd(cmd):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     for line in p.stdout:
-        yield line.strip()
+        yield line.decode("utf-8").strip()
     p.wait()
 
 def get_output_width(fallback_width):
@@ -299,7 +299,7 @@ def main(partitions, groups, accounts, search_pattern):
     screen_width = get_output_width(80)
     screen_width = int(screen_width) - 1
 
-    for k,g in groupby(sorted(node_meta.iteritems(), key=group_id), key=group_id):
+    for k,g in groupby(sorted(node_meta.items(), key=group_id), key=group_id):
         if len(partitions) > 0:
             if k.partition not in partitions:
                 continue
@@ -334,13 +334,13 @@ def main(partitions, groups, accounts, search_pattern):
             dummy_fields = fields_per_row - fields_in_last_row
             info_fields.extend([" "*max_field_width]*dummy_fields)
             name_patterns.extend([NODENAME_UNMATCHED]*dummy_fields)
-        rows = len(info_fields) / fields_per_row
-        print make_header(
+        rows = int(floor(len(info_fields) / fields_per_row))
+        print(make_header(
                 k.partition, partition_walltimes[k.partition], k.total_cores, k.total_mem, k.gpus,
-                max_field_width, fields_per_row, default_partition)
-        for r in xrange(0, rows):
-            print "| %s |" % " | ".join(pat % s for pat,s in zip(name_patterns, info_fields)[r::rows])
-        print make_footer(max_field_width, fields_per_row)
+                max_field_width, fields_per_row, default_partition))
+        for r in range(0, rows):
+            print("| %s |" % " | ".join(pat % s for pat,s in list(zip(name_patterns, info_fields))[r::rows]))
+        print(make_footer(max_field_width, fields_per_row))
 
 
 if __name__ == "__main__":
