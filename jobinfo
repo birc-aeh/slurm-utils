@@ -151,10 +151,12 @@ def f_state(states, meta):
         deps = " (%s)" % deps
     return ','.join(states) + reason + deps
 
-hide, show = False, True
+hide, show, verb = 0, 1, 2
 Field = NT('Field', 'name ctor combinator shown prefer_sstat formatter desc')
 FIELDS = [
         Field("JobName",             str,        keep_first,   show,  False, f_str,     "Name"),
+        Field("JobID",               str,        keep_first,   verb,  False, f_str,     "JobID"),
+        Field("JobIDRaw",            str,        keep_first,   verb,  False, f_str,     "JobID Raw"),
         Field("User",                str,        keep_first,   show,  False, f_str,     "User"),
         Field("Account",             str,        keep_first,   show,  False, f_str,     "Account"),
         Field("Partition",           str,        keep_first,   show,  False, f_str,     "Partition"),
@@ -228,7 +230,7 @@ def get_sstat_values(jobid):
             xs.append(x)
     return xs
 
-def main(jobid):
+def main(jobid, verbose):
     y = combine(get_values(jobid))
     meta = Meta._make(y + ['', ''])
     ys = [y]
@@ -247,9 +249,9 @@ def main(jobid):
     y = combine(ys)
     meta = Meta._make(y + [dependencies, reason])
 
-    for i,(name,parse,comb,show,prefer_sstat,format,desc) in enumerate(FIELDS):
+    for i,(name,parse,comb,shown,prefer_sstat,format,desc) in enumerate(FIELDS):
         val = y[i]
-        if show:
+        if shown == show or (verbose and shown == verb):
             print("%-20s: %s" % (desc, format(val, meta)))
 
 def usage(pipe):
@@ -264,9 +266,13 @@ Report bugs to Anders Halager <aeh@birc.au.dk>
   or on GitHub (https://github.com/birc-aeh/slurm-utils)""", file=pipe)
 
 if __name__ == "__main__":
+    verbose = False
     if "-h" in sys.argv or "--help" in sys.argv:
         usage(sys.stdout)
         sys.exit(0)
+    if "-v" in sys.argv:
+        verbose = True
+        sys.argv.remove("-v")
     if len(sys.argv) != 2:
         usage(sys.stderr)
         sys.exit(1)
@@ -275,4 +281,4 @@ if __name__ == "__main__":
         print("The argument does not look like a valid job id", file=sys.stderr)
         usage(sys.stderr)
         sys.exit(1)
-    main(jobid)
+    main(jobid, verbose)
