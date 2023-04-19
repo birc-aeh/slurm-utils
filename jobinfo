@@ -221,10 +221,13 @@ def combine(xs):
     return r
 
 def get_values(jobid):
-    info = subprocess.Popen(['sacct', FORMAT_STR, '--parsable', '--noheader', '-j', jobid], stdout=subprocess.PIPE)
+    # Using ASCII record seperator value for delimiter since any printable
+    # character can appear in some of the fields
+    field_sep = chr(30)
+    info = subprocess.Popen(['sacct', FORMAT_STR, '--parsable', '--noheader', '--delimiter', field_sep, '-j', jobid], stdout=subprocess.PIPE)
     xs = []
     for line in info.stdout:
-        fields = line.decode("utf-8").strip().split('|')
+        fields = line.decode("utf-8").strip("\n").split(field_sep)
         # On our cluster the external step is always cancelled for some reason
         # but I don't know if it's something other people might care about
         if fields[0].endswith(".extern"):
