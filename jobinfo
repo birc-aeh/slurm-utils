@@ -151,12 +151,23 @@ def f_state(states, meta):
         deps = " (%s)" % deps
     return ','.join(states) + reason + deps
 
+def get_slurm_version():
+    info = subprocess.Popen(['sinfo', '--version'], stdout=subprocess.PIPE)
+    for line in info.stdout:
+        slurm,version = line.decode("utf-8").strip().split()
+    return tuple(version.strip()[:5].split('.'))
+
+slurm_version = get_slurm_version()
+
+
 hide, show, verb = 0, 1, 2
 Field = NT('Field', 'name ctor combinator shown prefer_sstat formatter desc')
 FIELDS = [
         Field("JobName",             str,        keep_first,   show,  False, f_str,     "Name"),
         Field("JobID",               str,        keep_first,   verb,  False, f_str,     "JobID"),
         Field("JobIDRaw",            str,        keep_first,   verb,  False, f_str,     "JobID Raw"),
+        Field("SubmitLine",          str,        keep_first,   verb,  False, f_str,     "Submit line"),
+        Field("WorkDir",             str,        keep_first,   verb,  False, f_str,     "Working dir"),
         Field("User",                str,        keep_first,   show,  False, f_str,     "User"),
         Field("Account",             str,        keep_first,   show,  False, f_str,     "Account"),
         Field("Partition",           str,        keep_first,   show,  False, f_str,     "Partition"),
@@ -183,6 +194,16 @@ FIELDS = [
         Field("MaxDiskWriteNode",    str_set,    set.union,    hide,  True,  None,      ""),
         Field("MaxDiskReadNode",     str_set,    set.union,    hide,  True,  None,      ""),
         ]
+
+field_minimum_version = {
+    "WorkDir": ("17", "11"),
+    "SubmitLine": ("21", "08"),
+}
+
+def field_is_available(f):
+    return field_minimum_version.get(f.name, slurm_version) <= slurm_version
+
+FIELDS = [f for f in FIELDS if field_is_available(f)]
 
 FIELD_NAMES = [f.name for f in FIELDS]
 FIELD_NAMES_SSTAT = [f.name for f in FIELDS if f.prefer_sstat]
