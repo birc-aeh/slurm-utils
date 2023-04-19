@@ -281,7 +281,7 @@ def usage(pipe):
 and historical jobs.
 
 Usage:
-    jobinfo <job id>
+    jobinfo [-v] <job id>
 
 Report bugs to Anders Halager <aeh@birc.au.dk>
   or on GitHub (https://github.com/birc-aeh/slurm-utils)""", file=pipe)
