@@ -16,6 +16,10 @@ latest version and then marking the two files as executable.
     chmod +x gnodes jobinfo
     mv gnodes jobinfo ~/.local/bin/ # or another folder in your $PATH
 
+Additionally you might have to modify the shebang line of the two files. They
+assume the presence of a python3 in the path but RHEL8 for example doesn't
+guarantee any python executable other than `/usr/libexec/platform-python`.
+
 # gnodes
 The `gnodes` script gives a visual representation of your cluster.
 It shows you available memory and allocated/loaded cores for every every node
