@@ -115,7 +115,7 @@ def f_mem(x, meta):
         return x
 
 def f_time(x, meta):
-    all_times = [meta.timelimit, meta.elapsed, meta.TotalCPU, meta.reserved]
+    all_times = [getattr(meta, f) for f in TIME_FIELDS]
     max_time_len = max(len(without_fraction(y)) for y in all_times)
     ss, mm, hh, dd = parse_time(x)
     if dd > 0:
@@ -180,6 +180,7 @@ FIELDS = [
         Field("start",               date_str,   min,          show,  False, f_date,    "Start"),
         Field("end",                 str,        time_max,     show,  False, f_date,    "End"),
         Field("reserved",            date_str,   min,          show,  False, f_time,    "Waited"),
+        Field("planned",             date_str,   min,          show,  False, f_time,    "Waited"),
         Field("timelimit",           str,        time_max,     show,  False, f_time,    "Reserved walltime"),
         Field("elapsed",             str,        time_max,     show,  False, f_time,    "Used walltime"),
         Field("TotalCPU",            str,        max,          show,  False, f_time,    "Used CPU time"),
@@ -198,10 +199,17 @@ FIELDS = [
 field_minimum_version = {
     "WorkDir": ("17", "11"),
     "SubmitLine": ("21", "08"),
+    "planned": ("23", "O2"),
+}
+
+field_maximum_version = {
+    "reserved": ("22", "O5"),
 }
 
 def field_is_available(f):
-    return field_minimum_version.get(f.name, slurm_version) <= slurm_version
+    lo = field_minimum_version.get(f.name, slurm_version)
+    hi = field_maximum_version.get(f.name, slurm_version)
+    return lo <= slurm_version <= hi
 
 FIELDS = [f for f in FIELDS if field_is_available(f)]
 
@@ -212,6 +220,8 @@ FIELD_COMB = [f.combinator for f in FIELDS]
 FORMAT_STR = "--format=%s" % (",".join(FIELD_NAMES))
 FORMAT_SSTAT_STR = "--format=%s" % (",".join(FIELD_NAMES_SSTAT))
 Meta = NT('Meta', FIELD_NAMES + ['dependencies', 'reason'])
+
+TIME_FIELDS = [f.name for f in FIELDS if f.formatter == f_time]
 
 def combine(xs):
     r = xs[0]
