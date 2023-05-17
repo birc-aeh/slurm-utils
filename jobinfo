@@ -199,11 +199,11 @@ FIELDS = [
 field_minimum_version = {
     "WorkDir": ("17", "11"),
     "SubmitLine": ("21", "08"),
-    "planned": ("23", "O2"),
+    "planned": ("23", "02"),
 }
 
 field_maximum_version = {
-    "reserved": ("22", "O5"),
+    "reserved": ("22", "05"),
 }
 
 def field_is_available(f):
