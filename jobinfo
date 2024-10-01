@@ -170,6 +170,7 @@ FIELDS = [
         Field("User",                str,        keep_first,   show,  False, f_str,     "User"),
         Field("Account",             str,        keep_first,   show,  False, f_str,     "Account"),
         Field("Partition",           str,        keep_first,   show,  False, f_str,     "Partition"),
+        Field("QOS",                 str,        keep_first,   verb,  False, f_str,     "QOS"),
         Field("NodeList",            str,        keep_first,   show,  False, f_str,     "Nodes"),
         Field("ncpus",               int,        max,          show,  False, f_str,     "Cores"),
         Field("ReqTRES",             gpu_str,    max,          show,  False, f_str,     "GPUs"),
