@@ -229,18 +229,38 @@ def combine(xs):
             r[i] = comb(r[i], x[i])
     return r
 
-def get_values(jobid):
+def batched(iterable, n):
+    data = list(iterable)
+    for i in range(0, len(data), n):
+        yield data[i:i + n]
+
+# Parsing sacct output
+# --------------------
+# Since sacct only allows specifying a field separator and not a record
+# separator we instead have to read the entire sacct output in one go and then
+# split on field separator first since sacct fields can contain newlines.
+# Then we can take chunks of an appropriate length.
+# Since sacct still adds its own newlines we will get an extra newline at the
+# start of the first field of all but the first records.
+def get_sacct_values(jobid):
     # Using ASCII record seperator value for delimiter since any printable
     # character can appear in some of the fields
     field_sep = chr(30)
     info = subprocess.Popen(['sacct', FORMAT_STR, '--parsable', '--noheader', '--delimiter', field_sep, '-j', jobid], stdout=subprocess.PIPE)
     xs = []
-    for line in info.stdout:
-        fields = line.decode("utf-8").strip("\n").split(field_sep)
+    info_output = info.stdout.read().decode("utf-8")
+    all_fields = info_output.split(field_sep)
+    for record, fields in enumerate(batched(all_fields, len(FIELD_CTORS))):
         # On our cluster the external step is always cancelled for some reason
         # but I don't know if it's something other people might care about
         if fields[0].endswith(".extern"):
             continue
+        # Since we need every "line" to end with a field_sep we get an extra
+        # line at the end with just one field.
+        if len(fields) == 1:
+            continue
+        if record > 0:
+            fields = (fields[0].lstrip("\n"), *fields[1:])
         xs.append([ctor(s) for ctor, s in zip(FIELD_CTORS, fields)])
     if len(xs) == 0:
         print("No such job", file=sys.stderr)
@@ -264,7 +284,7 @@ def get_sstat_values(jobid):
     return xs
 
 def main(jobid, verbose):
-    y = combine(get_values(jobid))
+    y = combine(get_sacct_values(jobid))
     meta = Meta._make(y + ['', ''])
     ys = [y]
     if "RUNNING" in meta.State and (os.getuid() == 0 or meta.User == whoami()):
