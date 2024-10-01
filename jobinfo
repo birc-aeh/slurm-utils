@@ -12,7 +12,6 @@ import os
 import re
 import subprocess
 import sys
-import time
 from collections import namedtuple as NT
 
 def parse_time(t):
