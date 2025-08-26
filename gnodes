@@ -343,6 +343,13 @@ def main(partitions, groups, accounts, search_pattern):
         print(make_footer(max_field_width, fields_per_row))
 
 
+def flat_map(f, xs):
+    ys = []
+    for x in xs:
+        ys.extend(f(x))
+    return ys
+
+
 if __name__ == "__main__":
     parser = ArgumentParser(usage=__doc__)
     parser.add_argument("search", metavar="SEARCH", help="Regular expression search terms for node/user(s)", nargs='*')
@@ -358,4 +365,7 @@ if __name__ == "__main__":
         pattern = re.compile('$^')
         searching = False
 
-    main(args.partitions, set(args.groups), set(args.accounts), pattern)
+    partitions = flat_map(lambda p: p.split(","), args.partitions)
+    groups = flat_map(lambda p: p.split(","), args.groups)
+    accounts = flat_map(lambda p: p.split(","), args.accounts)
+    main(set(partitions), set(groups), set(accounts), pattern)
