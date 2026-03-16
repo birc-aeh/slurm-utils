@@ -134,7 +134,7 @@ def parse_state(raw):
         res |= DOWN
     if "maint" in raw or "$" in raw:
         res |= MAINTENANCE
-    if "planned" in raw or "-" in raw:
+    if ("planned" in raw or "-" in raw) and ("mixed" not in raw):
         res |= PLANNED
     return res
 
