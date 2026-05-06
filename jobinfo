@@ -55,6 +55,12 @@ def gpu_str(s=None):
     m = re.match(r".*gres/gpu=(?P<num_gpus>\d+)", s.lower())
     return int(m.group('num_gpus'))
 
+def gutil_str(s=None):
+    if s is None or "gres/gpuutil=" not in s.lower():
+        return None
+    m = re.match(r".*gres/gpuutil=(?P<gpuutil>\d+)", s.lower())
+    return int(m.group('gpuutil')) / 100.0
+
 def byte_size(s=None):
     if s in [None, "", "16?"]:
         return -1.0
@@ -79,6 +85,13 @@ def time_max(a, b):
     if a in ['', 'INVALID']:
         return b
     if b in ['', 'INVALID']:
+        return a
+    return max(a, b)
+
+def present_max(a, b):
+    if a is None:
+        return b
+    if b is None:
         return a
     return max(a, b)
 
@@ -150,6 +163,12 @@ def f_state(states, meta):
         deps = " (%s)" % deps
     return ','.join(states) + reason + deps
 
+def f_gutil(x, meta):
+    if meta.ReqTRES == 0 or x is None:
+        return "--"
+    return "{:.2f} GPUs ({}%)".format(x, int(x / meta.ReqTRES * 100))
+
+
 def get_slurm_version():
     info = subprocess.Popen(['sinfo', '--version'], stdout=subprocess.PIPE)
     for line in info.stdout:
@@ -190,6 +209,7 @@ FIELDS = [
         Field("MaxRSS",              byte_size,  max,          show,  True,  f_rss,     "Max Mem used"),
         Field("MaxDiskWrite",        byte_size,  max,          show,  True,  f_dw,      "Max Disk Write"),
         Field("MaxDiskRead",         byte_size,  max,          show,  True,  f_dr,      "Max Disk Read"),
+        Field("TRESUsageInAve",      gutil_str,  present_max,  show,  True,  f_gutil,   "GPU utilization"),
 
         Field("MaxRSSNode",          str_set,    set.union,    hide,  True,  None,      ""),
         Field("MaxDiskWriteNode",    str_set,    set.union,    hide,  True,  None,      ""),
