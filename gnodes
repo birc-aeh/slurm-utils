@@ -324,7 +324,7 @@ def main(partitions, groups, accounts, search_pattern):
                 gpu_usage = " " + GPU_IDLE*(meta.total_gpus - meta.alloc_gpus) + GPU_ALLOC*meta.alloc_gpus
             else:
                 gpu_usage = ""
-            info = "%-6s %4.0fG  %s%s" % (node, mem_available / (2**30), bar.center(meta.total_cores), gpu_usage)
+            info = "%-6s %s cores & %4.0fG  %s%s" % (node, meta.total_cores - meta.alloc_cores, mem_available / (2**30), bar.center(meta.total_cores), gpu_usage)
             info_fields.append(info)
             name_patterns.append(NODENAME_MATCHED if highlight else NODENAME_UNMATCHED)
         max_field_width = max(len(i) for i in info_fields)
